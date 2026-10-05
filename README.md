@@ -10,6 +10,12 @@ Open `index.html` in a current browser. There is no build step and nothing to in
 
 The page loads three typefaces from Google Fonts. Without a network connection it falls back to system fonts and works the same.
 
+- **Live demo:** https://jurgenkobierczynski.com/Telescope-Optics-Lab/Telescope_Optics_Lab.html
+
+## Screenshot
+
+![Telescope Optics Lab](Telescope_Optics_Lab.jpg)
+
 ## Designs
 
 | Group | Design | Made of |
