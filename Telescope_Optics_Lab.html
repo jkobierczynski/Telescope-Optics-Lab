@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Telescope Optics Lab</title>
+<!--
+  Telescope Optics Lab: an interactive, ray-traced bench for comparing telescope designs.
+  Copyright (C) 2026 Jurgen Kobierczynski
+  SPDX-License-Identifier: GPL-3.0-only
+
+  This program is free software: you can redistribute it and/or modify it under the terms of the
+  GNU General Public License as published by the Free Software Foundation, version 3.
+  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+  even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details: https://www.gnu.org/licenses/gpl-3.0.html
+
+  Built with Claude Opus 5.5 Medium.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap">
+<style>
+/* Layout: instrument catalogue down the left, the ray-traced bench in the middle, controls on the right;
+   star images, aberration plots, notes and the prescription follow under the bench. */
+:root {
+  --paper: #e9edf1; --panel: #f7f9fb; --ink: #131c29; --ink-2: #445267; --ink-3: #6f7c8e; --line: #d2d9e1; --line-2: #b3bdc9;
+  --brass: #835606; --brass-fill: #b98414; --sky: #0a6c94;
+  --glass: rgba(60, 150, 195, .24); --glass-edge: #2f7fa5; --mirror: #a3aebb; --mirror-edge: #18222f; --sensor: #b3261e;
+  --wl-g: #6a3fc9; --wl-F: #1f6fd6; --wl-d: #a07c00; --wl-C: #c9342b;
+  --ok: #17694a; --ok-bg: #d8ede3; --band: rgba(131, 86, 6, .13);
+  --f-display: 'Spectral', 'Iowan Old Style', Georgia, serif;
+  --f-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --paper: #0a0f15; --panel: #111822; --ink: #e4eaf1; --ink-2: #a9b5c4; --ink-3: #77859a; --line: #212c39; --line-2: #36465a;
+  --brass: #e3b75c; --brass-fill: #e3b75c; --sky: #66c8ef;
+  --glass: rgba(110, 195, 235, .2); --glass-edge: #72bfe2; --mirror: #4d5a6a; --mirror-edge: #e6eef6; --sensor: #ff7b6c;
+  --wl-g: #ad90ff; --wl-F: #5ea6ff; --wl-d: #f1d24e; --wl-C: #ff7163;
+  --ok: #6ad6a8; --ok-bg: #12362b; --band: rgba(227, 183, 92, .13);
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0a0f15; --panel: #111822; --ink: #e4eaf1; --ink-2: #a9b5c4; --ink-3: #77859a; --line: #212c39; --line-2: #36465a;
+  --brass: #e3b75c; --brass-fill: #e3b75c; --sky: #66c8ef;
+  --glass: rgba(110, 195, 235, .2); --glass-edge: #72bfe2; --mirror: #4d5a6a; --mirror-edge: #e6eef6; --sensor: #ff7b6c;
+  --wl-g: #ad90ff; --wl-F: #5ea6ff; --wl-d: #f1d24e; --wl-C: #ff7163;
+  --ok: #6ad6a8; --ok-bg: #12362b; --band: rgba(227, 183, 92, .13);
+  color-scheme: dark;
+}
+/* palettes chosen with the Theme menu; they win over the viewer's light or dark setting */
+html:root[data-palette="paper"] {
+  --paper: #e9edf1; --panel: #f7f9fb; --ink: #131c29; --ink-2: #445267; --ink-3: #6f7c8e; --line: #d2d9e1; --line-2: #b3bdc9;
+  --brass: #835606; --brass-fill: #b98414; --sky: #0a6c94;
+  --glass: rgba(60, 150, 195, .24); --glass-edge: #2f7fa5; --mirror: #a3aebb; --mirror-edge: #18222f; --sensor: #b3261e;
+  --wl-g: #6a3fc9; --wl-F: #1f6fd6; --wl-d: #a07c00; --wl-C: #c9342b;
+  --ok: #17694a; --ok-bg: #d8ede3; --band: rgba(131, 86, 6, .13);
+  color-scheme: light;
+}
+html:root[data-palette="observatory"] {
+  --paper: #0a0f15; --panel: #111822; --ink: #e4eaf1; --ink-2: #a9b5c4; --ink-3: #77859a; --line: #212c39; --line-2: #36465a;
+  --brass: #e3b75c; --brass-fill: #e3b75c; --sky: #66c8ef;
+  --glass: rgba(110, 195, 235, .2); --glass-edge: #72bfe2; --mirror: #4d5a6a; --mirror-edge: #e6eef6; --sensor: #ff7b6c;
+  --wl-g: #ad90ff; --wl-F: #5ea6ff; --wl-d: #f1d24e; --wl-C: #ff7163;
+  --ok: #6ad6a8; --ok-bg: #12362b; --band: rgba(227, 183, 92, .13);
+  color-scheme: dark;
+}
+html:root[data-palette="blueprint"] {
+  --paper: #0d315c; --panel: #113a6c; --ink: #eef5ff; --ink-2: #bcd1ec; --ink-3: #8eabd0; --line: #1d4c86; --line-2: #3a6ca9;
+  --brass: #ffd98a; --brass-fill: #ffd166; --sky: #8fe3ff;
+  --glass: rgba(160, 220, 255, .22); --glass-edge: #a8dcff; --mirror: #2b5c98; --mirror-edge: #ffffff; --sensor: #ff9d8a;
+  --wl-g: #cdb8ff; --wl-F: #9ccaff; --wl-d: #ffe27a; --wl-C: #ff9a8a;
+  --ok: #a5f2cc; --ok-bg: #1a5957; --band: rgba(255, 209, 102, .15);
+  color-scheme: dark;
+}
+html:root[data-palette="night"] {
+  --paper: #070000; --panel: #110303; --ink: #ff5d4d; --ink-2: #d43c30; --ink-3: #a22c23; --line: #2a0a08; --line-2: #561510;
+  --brass: #ff6a55; --brass-fill: #ff5544; --sky: #b93026;
+  --glass: rgba(255, 60, 40, .15); --glass-edge: #c8382c; --mirror: #3a0d0a; --mirror-edge: #ff7a66; --sensor: #ff9a8a;
+  --wl-g: #8a1f18; --wl-F: #c0332a; --wl-d: #ff5544; --wl-C: #ffa091;
+  --ok: #ff8a78; --ok-bg: #3a0d0a; --band: rgba(255, 80, 60, .13);
+  color-scheme: dark;
+}
+html:root[data-palette="contrast"] {
+  --paper: #ffffff; --panel: #ffffff; --ink: #000000; --ink-2: #1c1c1c; --ink-3: #474747; --line: #b4b4b4; --line-2: #000000;
+  --brass: #7a3e00; --brass-fill: #b85c00; --sky: #0047ab;
+  --glass: rgba(0, 71, 171, .14); --glass-edge: #0047ab; --mirror: #8c8c8c; --mirror-edge: #000000; --sensor: #c40000;
+  --wl-g: #5a00c8; --wl-F: #0047ab; --wl-d: #8a6a00; --wl-C: #c40000;
+  --ok: #005a2e; --ok-bg: #d6f2e2; --band: rgba(0, 0, 0, .08);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.5; }
+h1, h2, h3, p, dl, dd, ul, figure, fieldset { margin: 0; padding: 0; }
+fieldset { border: 0; min-width: 0; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.app { padding-inline: 20px; padding-block: 18px 40px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; padding-bottom: 12px; border-bottom: 1px solid var(--line-2); }
+.head h1 { font-family: var(--f-display); font-weight: 600; font-size: 28px; line-height: 1.15; letter-spacing: -.005em; text-wrap: balance; }
+.head p { color: var(--ink-2); max-width: 62ch; flex: 1 1 320px; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; color: var(--ink-2); margin-left: auto; }
+.tools .hint { color: var(--ink-3); margin-right: 6px; }
+.tbtn { background: transparent; border: 1px solid var(--line-2); border-radius: 4px; padding: 3px 10px; font-size: 12.5px; line-height: 1.4; cursor: pointer; }
+.tbtn:hover:not(:disabled) { border-color: var(--ink-2); }
+.tbtn:disabled { opacity: .4; cursor: default; }
+.tbtn.sq { width: 26px; padding-inline: 0; font-family: var(--f-mono); }
+.tsel { display: inline-flex; align-items: center; gap: 6px; }
+.tsel select { width: auto; padding: 3px 6px; font-size: 12.5px; background: var(--panel); }
+#col-n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; min-width: 9ch; text-align: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* board: columns of panels; panels move between columns, gutters resize them */
+.board { display: flex; align-items: stretch; min-width: 0; }
+.col { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+.col.empty::before { content: 'Drop a panel here'; display: grid; place-items: center; min-height: 140px; border: 1.5px dashed var(--line-2); border-radius: 6px; color: var(--ink-3); font-size: 12.5px; }
+.gut { flex: 0 0 24px; position: relative; cursor: col-resize; touch-action: none; }
+.gut::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1.5px; border-radius: 2px; background: transparent; }
+.gut:hover::after, .gut:focus-visible::after, .gut.on::after { background: var(--line-2); }
+.gut:focus-visible { outline: none; }
+.gut:focus-visible::after, .gut.on::after { background: var(--brass-fill); }
+.panel { container-type: inline-size; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
+.p-h { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.p-t { flex: 1 1 auto; min-width: 0; padding-top: 1px; }
+.p-t h2 { font-family: var(--f-display); font-weight: 600; font-size: 19px; line-height: 1.25; }
+.p-b { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.grip, .fold { flex: none; width: 24px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-3); }
+.grip { cursor: grab; touch-action: none; margin-left: -4px; }
+.fold { cursor: pointer; }
+.grip:hover, .fold:hover { color: var(--ink); background: var(--line); }
+.fold svg { transition: transform .15s; }
+.panel.shut .fold svg { transform: rotate(-90deg); }
+.panel.drag { position: fixed; z-index: 50; margin: 0; padding: 8px 12px 12px; max-height: 230px; overflow: hidden; background: var(--paper); border: 1px solid var(--line-2); border-radius: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .28); opacity: .96; }
+.panel.drag .grip { cursor: grabbing; }
+.ph { border: 1.5px dashed var(--brass-fill); border-radius: 6px; background: var(--band); min-height: 56px; }
+.dragging, .dragging * { user-select: none; -webkit-user-select: none; }
+.dragging { cursor: grabbing; }
+.panel.stick { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; }
+.panel[data-panel="ctl"] { background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; padding: 10px 16px 16px; }
+
+.cat { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.cat-g { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cat-h, .grp legend, .ro dt, .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.cat-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 2px; }
+.cat-b { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.cat-b:hover { background: var(--panel); }
+.cat-b[aria-pressed="true"] { background: var(--panel); border-color: var(--line-2); }
+.thumb { width: 58px; height: 34px; display: block; }
+.cat-t { display: flex; flex-direction: column; min-width: 0; }
+.cat-n { font-weight: 500; line-height: 1.25; }
+.cat-b[aria-pressed="true"] .cat-n { color: var(--brass); font-weight: 600; }
+.cat-r { font-size: 11.5px; line-height: 1.3; color: var(--ink-3); }
+
+.p-t #d-name { font-size: 24px; line-height: 1.2; }
+.p-t #d-recipe { font-family: var(--f-display); font-style: italic; font-weight: 500; font-size: 15.5px; color: var(--ink-2); }
+.cv-wrap { position: relative; background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; }
+#bench-cv { display: block; width: 100%; aspect-ratio: 2.35; max-width: 100%; min-height: 230px; max-height: 72vh; }
+#dead { position: absolute; inset: auto 0 44% 0; text-align: center; font-weight: 500; color: var(--sensor); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.legend .note { margin-left: auto; color: var(--ink-3); }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { display: inline-block; width: 18px; height: 2px; border-radius: 1px; }
+.ln.a { background: var(--brass-fill); } .ln.b { background: var(--sky); } .ln.s { background: var(--sensor); height: 3px; }
+.ln.dash { background: linear-gradient(90deg, var(--sky) 0 6px, transparent 6px 10px, var(--sky) 10px 16px, transparent 16px); }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.ring { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px dashed var(--ink); }
+.bandkey { display: inline-block; width: 14px; height: 10px; background: var(--band); border: 1px solid var(--line-2); }
+
+.readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 20px; }
+.ro { padding: 8px 0 9px; border-bottom: 1px solid var(--line); min-width: 0; }
+.ro dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.ro-v { font-family: var(--f-mono); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ro-n { font-size: 12px; color: var(--ink-3); }
+
+#reset { align-self: flex-start; }
+.grp { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--line); }
+.grp:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+.grp legend { padding: 0; float: left; width: 100%; margin-bottom: 9px; }
+.grp legend + * { clear: both; }
+.row { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.row label { font-size: 13px; }
+.val { font-family: var(--f-mono); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sub { font-size: 11.5px; color: var(--ink-3); line-height: 1.25; }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 1px 0 0; background: transparent; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--line-2); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: var(--brass-fill); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--brass-fill); }
+input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--line-2); }
+input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--brass-fill); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--brass-fill); }
+select { width: 100%; background: var(--paper); border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 6px; font-size: 13px; }
+.chk { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.35; }
+.chk input { margin: 2px 0 0; accent-color: var(--brass-fill); flex: none; }
+.fixed { font-size: 12px; color: var(--ink-3); line-height: 1.35; }
+
+.lede { color: var(--ink-2); max-width: 68ch; font-size: 13.5px; }
+.spots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; max-width: 980px; }
+.spot { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.spot canvas { display: block; width: 100%; max-width: 100%; background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; }
+.spot canvas { aspect-ratio: 1; }
+.spot-t { font-weight: 600; font-size: 13px; }
+.spot-r { font-family: var(--f-mono); font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pill { align-self: flex-start; font-size: 11.5px; font-weight: 500; padding: 1px 8px; border-radius: 10px; border: 1px solid transparent; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.no { border-color: var(--line-2); color: var(--ink-2); }
+.plot-cv { display: block; width: 100%; max-width: 100%; aspect-ratio: 1.55; max-height: 340px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; }
+.notes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 28px; }
+.notes > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.notes p, .notes li { max-width: 62ch; }
+.notes ul { padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line-2); border-radius: 4px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+tbody td:nth-child(4) { white-space: normal; min-width: 9ch; }
+thead th { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+tbody td { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+tbody th { font-weight: 500; }
+.foot { display: flex; flex-direction: column; gap: 8px; color: var(--ink-3); font-size: 12.5px; padding-top: 14px; border-top: 1px solid var(--line); }
+.foot p { max-width: 110ch; }
+.foot a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.foot a:hover { color: var(--brass); }
+
+@container (max-width: 520px) {
+  .notes { grid-template-columns: minmax(0, 1fr); }
+  .spots { gap: 8px; }
+  .legend .note { margin-left: 0; }
+}
+.board[data-cols="1"] .col { gap: 18px; }
+.board[data-cols="1"] .cat { flex-direction: row; gap: 22px; overflow-x: auto; padding-bottom: 8px; }
+.board[data-cols="1"] .cat-g { flex: none; }
+.board[data-cols="1"] .cat-list { display: flex; flex-direction: row; gap: 4px; }
+.board[data-cols="1"] .cat-b { width: 196px; flex: none; }
+@media (max-width: 760px) {
+  .app { padding-inline: 16px; }
+  .head h1 { font-size: 24px; }
+  .p-t #d-name { font-size: 21px; }
+  #bench-cv { aspect-ratio: 1.45; }
+  .tools .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="head">
+    <h1>Telescope Optics Lab</h1>
+    <p>Twelve telescope designs on a ray-traced bench. Pick one, then change its mirrors, lenses and spacings and see what that does to a star.</p>
+    <div class="tools" id="tools">
+      <span class="hint">Drag a panel by its grip to move it. Drag between columns to resize them.</span>
+      <label class="tsel" for="theme">Theme
+        <select id="theme">
+          <option value="auto">Match my device</option>
+          <option value="paper">Drafting paper</option>
+          <option value="observatory">Observatory</option>
+          <option value="blueprint">Blueprint</option>
+          <option value="night">Red night vision</option>
+          <option value="contrast">High contrast</option>
+        </select>
+      </label>
+      <button class="tbtn sq" id="col-minus" type="button" aria-label="Remove a column">−</button>
+      <span id="col-n">3 columns</span>
+      <button class="tbtn sq" id="col-plus" type="button" aria-label="Add a column">+</button>
+      <button class="tbtn" id="lay-reset" type="button">Reset layout</button>
+    </div>
+  </header>
+
+  <div id="board" class="board">
+    <section class="panel" data-panel="cat" data-title="Telescopes">
+      <div class="p-t"><h2>Telescopes</h2></div>
+      <div class="p-b"><nav id="catalog" class="cat" aria-label="Telescope designs"></nav></div>
+    </section>
+
+    <section class="panel" data-panel="bench" data-title="Ray diagram">
+      <div class="p-t"><h2 id="d-name">Telescope</h2><p id="d-recipe"></p></div>
+      <div class="p-b">
+        <div class="cv-wrap">
+          <canvas id="bench-cv" role="img" aria-label="Ray diagram of the selected telescope, drawn from the traced rays"></canvas>
+          <p id="dead" hidden>No light reaches the focus with these settings.</p>
+        </div>
+        <div class="legend">
+          <span class="key"><i class="ln a"></i>star on axis</span>
+          <span class="key" id="leg-off"><i class="ln b"></i><span id="leg-off-t">star off axis</span></span>
+          <span class="key"><i class="ln s"></i>detector</span>
+          <label class="chk"><input type="checkbox" id="stretch"><span>Stretch the height to fill</span></label>
+          <span class="note">Starlight enters from the left.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="figs" data-title="Key figures">
+      <div class="p-t"><h2>Key figures</h2></div>
+      <div class="p-b"><dl id="readouts" class="readouts"></dl></div>
+    </section>
+
+    <section class="panel" data-panel="ctl" data-title="Controls">
+      <div class="p-t"><h2>Controls</h2></div>
+      <div class="p-b"><button class="tbtn" id="reset" type="button">Reset design</button><div id="controls-body"></div></div>
+    </section>
+
+    <section class="panel" data-panel="spots" data-title="Star images">
+      <div class="p-t"><h2>Star images</h2></div>
+      <div class="p-b">
+        <p class="lede">Where 331 rays per colour from one star land on the detector, at the centre of the field, 70 % of the way out, and at the edge. A perfect telescope puts every ray on the cross.</p>
+        <div class="spots">
+          <figure class="spot"><canvas id="spot-0" role="img" aria-label="Spot diagram on axis"></canvas><span class="spot-t" id="spot-t-0"></span><span class="spot-r" id="spot-r-0"></span><span class="pill" id="spot-p-0"></span></figure>
+          <figure class="spot"><canvas id="spot-1" role="img" aria-label="Spot diagram at 70 percent of the field"></canvas><span class="spot-t" id="spot-t-1"></span><span class="spot-r" id="spot-r-1"></span><span class="pill" id="spot-p-1"></span></figure>
+          <figure class="spot"><canvas id="spot-2" role="img" aria-label="Spot diagram at the edge of the field"></canvas><span class="spot-t" id="spot-t-2"></span><span class="spot-r" id="spot-r-2"></span><span class="pill" id="spot-p-2"></span></figure>
+        </div>
+        <div class="legend">
+          <span id="spot-scale"></span>
+          <span class="key"><i class="ring"></i>Airy disc</span>
+          <span id="wl-legend" class="legend"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="lsa" data-title="Focus by aperture zone">
+      <div class="p-t"><h2>Focus by aperture zone</h2></div>
+      <div class="p-b">
+        <p class="lede">Where rays from each ring of the aperture, from the axis out to the rim, cross the axis. A perfect telescope gives one vertical line on the detector.</p>
+        <canvas id="lsa-cv" class="plot-cv" role="img" aria-label="Longitudinal aberration plot"></canvas>
+        <div class="legend"><span id="lsa-legend" class="legend"></span><span class="key"><i class="ln s"></i>detector</span><span class="key"><i class="bandkey"></i>¼-wave depth of focus</span></div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="fld" data-title="Field curvature and astigmatism">
+      <div class="p-t"><h2>Field curvature and astigmatism</h2></div>
+      <div class="p-b">
+        <p class="lede">Where a star focuses as it moves off axis. The two curves separate when the image is astigmatic. Sharp images need both inside the band round the detector.</p>
+        <canvas id="fld-cv" class="plot-cv" role="img" aria-label="Tangential and sagittal field curves"></canvas>
+        <div class="legend"><span class="key"><i class="ln a"></i>tangential</span><span class="key"><i class="ln dash"></i>sagittal</span><span class="key"><i class="ln s"></i>detector</span><span class="key"><i class="bandkey"></i>¼-wave depth of focus</span></div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="about" data-title="About this design">
+      <div class="p-t"><h2>About this design</h2></div>
+      <div class="p-b">
+        <div class="notes">
+          <div><span class="eyebrow">How it works</span><p id="d-about"></p></div>
+          <div><span class="eyebrow">Things to try</span><ul id="d-tries"></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="rx" data-title="Prescription">
+      <div class="p-t"><h2>Prescription</h2></div>
+      <div class="p-b">
+        <p class="lede">The surfaces in the order light meets them. Radii are signed along the bench: negative when the centre of curvature lies towards the incoming light.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>#</th><th>Surface</th><th>Radius, mm</th><th>Conic K / asphere</th><th>To next, mm</th><th>Then</th><th>Clear ⌀, mm</th></tr></thead>
+            <tbody id="rx-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <p>How the numbers are made: every picture comes from tracing rays through the actual surfaces, with conic mirrors, aspheric plates and catalogue dispersion for the glasses (Schott N-BK7, F2 and N-BAK4, and calcium fluoride). The spots are geometric, so diffraction appears only as the Airy circle for scale; a spot is marked diffraction-limited when its RMS radius is smaller than the Airy radius. Mirrors and lenses are sized to pass the field you set. Corrector plates and doublet radii are solved in the page. The Maksutov and Modified Dall–Kirkham prescriptions were optimised for this lab and are not any maker’s design.</p>
+    <p>Telescope Optics Lab © 2026 Jurgen Kobierczynski. Free software under the <a href="https://www.gnu.org/licenses/gpl-3.0.html">GNU General Public License, version 3</a> (GPL-3.0-only): you may use, study, share and change it under those terms, and it comes with no warranty. Built with Claude Opus 5.5 Medium.</p>
+  </footer>
+  <div id="live" class="sr" aria-live="polite"></div>
+</div>
+
+<script>
+/* Sequential 3D ray tracer for rotationally symmetric telescope systems.
+   Units: millimetres, wavelengths in micrometres. Light enters travelling +z. */
+const OPT = (function () {
+  'use strict';
+  const RAD = Math.PI / 180;
+  const LAM = { g: 0.435835, F: 0.486133, d: 0.587562, C: 0.656273 };
+
+  // Sellmeier coefficients (B1..3, C1..3 in um^2)
+  const GLASS = {
+    'N-BK7': { B: [1.03961212, 0.231792344, 1.01046945], C: [0.00600069867, 0.0200179144, 103.560653] },
+    'F2': { B: [1.34533359, 0.209073176, 0.937357162], C: [0.00997743871, 0.0470450767, 111.886764] },
+    'CaF2': { B: [0.5675888, 0.4710914, 3.8484723], C: [0.050263605 * 0.050263605, 0.1003909 * 0.1003909, 34.64904 * 34.64904] },
+    'N-BAK4': { B: [1.28834642, 0.132817724, 0.945395373], C: [0.00779980626, 0.0315631177, 105.965875] },
+    'SiO2': { B: [0.6961663, 0.4079426, 0.8974794], C: [0.0684043 * 0.0684043, 0.1162414 * 0.1162414, 9.896161 * 9.896161] }
+  };
+  function nGlass(name, lam) {
+    if (!name) return 1;
+    const g = GLASS[name], L = lam * lam;
+    let s = 1;
+    for (let i = 0; i < 3; i++) s += g.B[i] * L / (L - g.C[i]);
+    return Math.sqrt(s);
+  }
+  function abbe(name) {
+    return (nGlass(name, LAM.d) - 1) / (nGlass(name, LAM.F) - nGlass(name, LAM.C));
+  }
+
+  // ---- surfaces ----
+  function surf(o) {
+    return Object.assign({
+      type: 'conic', z: 0, c: 0, k: 0, a2: 0, a4: 0, a6: 0, sd: 1e9, hole: 0,
+      mode: 'pass', glass: null, n2: 1, label: '', back: 0, ny: 0, nz: 0, part: ''
+    }, o);
+  }
+  function sagU(s, u) {
+    let z = 0;
+    const c = s.c;
+    if (c !== 0) {
+      const q = 1 - (1 + s.k) * c * c * u;
+      if (q < 0) return NaN;
+      z = c * u / (1 + Math.sqrt(q));
+    }
+    return z + u * (s.a2 + u * (s.a4 + u * s.a6));
+  }
+  function dsagU(s, u) {
+    let d = 0;
+    const c = s.c;
+    if (c !== 0) {
+      const q = 1 - (1 + s.k) * c * c * u;
+      if (q <= 0) return NaN;
+      d = c / (2 * Math.sqrt(q));
+    }
+    return d + s.a2 + u * (2 * s.a4 + u * 3 * s.a6);
+  }
+
+  function prep(sys, lam) {
+    const S = sys.surfaces;
+    for (let i = 0; i < S.length; i++) if (S[i].mode === 'refract') S[i].n2 = nGlass(S[i].glass, lam);
+  }
+
+  /* Trace r = {x,y,z,dx,dy,dz} through the system. Returns -1 when the ray reaches
+     the last surface, otherwise the index of the surface that stopped it. */
+  function trace(sys, r, noClip, pts) {
+    const S = sys.surfaces;
+    let n = 1;
+    for (let i = 0; i < S.length; i++) {
+      const s = S[i];
+      if (s.type === 'fold') {
+        const dn = r.dy * s.ny + r.dz * s.nz;
+        const t = -(r.y * s.ny + (r.z - s.z) * s.nz) / dn;
+        r.x += t * r.dx; r.y += t * r.dy; r.z += t * r.dz;
+        if (pts) pts.push([r.x, r.y, r.z]);
+        if (!noClip && r.x * r.x + r.y * r.y > s.sd * s.sd) return i;
+        r.dy -= 2 * dn * s.ny; r.dz -= 2 * dn * s.nz;
+        continue;
+      }
+      let t = (s.z - r.z) / r.dz, x = 0, y = 0, z = 0, u = 0;
+      for (let it = 0; it < 14; it++) {
+        x = r.x + t * r.dx; y = r.y + t * r.dy; z = r.z + t * r.dz; u = x * x + y * y;
+        const sg = sagU(s, u);
+        if (sg !== sg) { if (pts) pts.push([x, y, z]); return i; }
+        const dF = r.dz - dsagU(s, u) * 2 * (x * r.dx + y * r.dy);
+        const dt = (z - s.z - sg) / dF;
+        t -= dt;
+        if (dt < 1e-10 && dt > -1e-10) break;
+      }
+      x = r.x + t * r.dx; y = r.y + t * r.dy; z = r.z + t * r.dz; u = x * x + y * y;
+      r.x = x; r.y = y; r.z = z;
+      if (pts) pts.push([x, y, z]);
+      if (!noClip) {
+        if (u > s.sd * s.sd) return i;
+        if (s.hole > 0 && u < s.hole * s.hole) return i;
+      }
+      if (s.mode === 'pass') continue;
+      const g = 2 * dsagU(s, u);
+      if (g !== g) return i;
+      let nx = -g * x, ny = -g * y, nz = 1;
+      const inv = 1 / Math.sqrt(nx * nx + ny * ny + 1);
+      nx *= inv; ny *= inv; nz *= inv;
+      let cosi = -(r.dx * nx + r.dy * ny + r.dz * nz);
+      if (s.mode === 'mirror') {
+        r.dx += 2 * cosi * nx; r.dy += 2 * cosi * ny; r.dz += 2 * cosi * nz;
+      } else {
+        if (cosi < 0) { nx = -nx; ny = -ny; nz = -nz; cosi = -cosi; }
+        const eta = n / s.n2, k2 = 1 - eta * eta * (1 - cosi * cosi);
+        if (k2 < 0) return i;
+        const f = eta * cosi - Math.sqrt(k2);
+        r.dx = eta * r.dx + f * nx; r.dy = eta * r.dy + f * ny; r.dz = eta * r.dz + f * nz;
+        n = s.n2;
+      }
+    }
+    return -1;
+  }
+
+  // Ray that passes through pupil point (px,py) in the stop plane at field angle theta (rad, tilted in y).
+  function launch(sys, px, py, theta) {
+    const sn = Math.sin(theta), cs = Math.cos(theta);
+    const L = (sys.stop.z - sys.zStart) / cs;
+    return { x: px, y: py - L * sn, z: sys.zStart, dx: 0, dy: sn, dz: cs };
+  }
+  // Express a ray in the image frame: [pu,pv,pw,du,dv,dw]
+  function toLocal(sys, r) {
+    const I = sys.image, X = r.x - I.o[0], Y = r.y - I.o[1], Z = r.z - I.o[2];
+    return [
+      X * I.u[0] + Y * I.u[1] + Z * I.u[2], X * I.v[0] + Y * I.v[1] + Z * I.v[2], X * I.w[0] + Y * I.w[1] + Z * I.w[2],
+      r.dx * I.u[0] + r.dy * I.u[1] + r.dz * I.u[2], r.dx * I.v[0] + r.dy * I.v[1] + r.dz * I.v[2], r.dx * I.w[0] + r.dy * I.w[1] + r.dz * I.w[2]
+    ];
+  }
+  // Intersection with the detector: plane w=W0, or sphere of curvature c touching it.
+  function hit(L, W0, c) {
+    let t = (W0 - L[2]) / L[5];
+    if (c) {
+      for (let it = 0; it < 8; it++) {
+        const u = L[0] + t * L[3], v = L[1] + t * L[4], w = L[2] + t * L[5];
+        const r2 = u * u + v * v, q = 1 - c * c * r2;
+        if (q <= 0) break;
+        const sq = Math.sqrt(q), F = w - W0 - c * r2 / (1 + sq);
+        const dF = L[5] - (c / sq) * (u * L[3] + v * L[4]);
+        const dt = F / dF;
+        t -= dt;
+        if (Math.abs(dt) < 1e-10) break;
+      }
+    }
+    return [L[0] + t * L[3], L[1] + t * L[4], t];
+  }
+  function hexapolar(R, rings) {
+    const P = [[0, 0]];
+    for (let k = 1; k <= rings; k++) {
+      const r = R * k / rings, n = 6 * k;
+      for (let j = 0; j < n; j++) { const a = 2 * Math.PI * j / n; P.push([r * Math.cos(a), r * Math.sin(a)]); }
+    }
+    return P;
+  }
+  // Trace a bundle; returns the surviving rays in image-frame coordinates.
+  function bundle(sys, theta, lam, pupil, noClip) {
+    prep(sys, lam);
+    const out = [];
+    for (let i = 0; i < pupil.length; i++) {
+      const r = launch(sys, pupil[i][0], pupil[i][1], theta);
+      if (trace(sys, r, noClip, null) === -1) out.push(toLocal(sys, r));
+    }
+    return out;
+  }
+  // Plane position (along w) that minimises the RMS spot radius of a bundle.
+  function bestW(Ls) {
+    const n = Ls.length;
+    if (n < 2) return 0;
+    let am = 0, bm = 0, sm = 0, tm = 0;
+    const A = [], B = [], Sx = [], T = [];
+    for (let i = 0; i < n; i++) {
+      const L = Ls[i], s = L[3] / L[5], t = L[4] / L[5], a = L[0] - s * L[2], b = L[1] - t * L[2];
+      A.push(a); B.push(b); Sx.push(s); T.push(t); am += a; bm += b; sm += s; tm += t;
+    }
+    am /= n; bm /= n; sm /= n; tm /= n;
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (A[i] - am) * (Sx[i] - sm) + (B[i] - bm) * (T[i] - tm);
+      den += (Sx[i] - sm) * (Sx[i] - sm) + (T[i] - tm) * (T[i] - tm);
+    }
+    return den > 0 ? -num / den : 0;
+  }
+  function spotStats(P) {
+    const n = P.length;
+    if (!n) return { n: 0, cu: 0, cv: 0, rms: NaN, max: NaN };
+    let cu = 0, cv = 0;
+    for (let i = 0; i < n; i++) { cu += P[i][0]; cv += P[i][1]; }
+    cu /= n; cv /= n;
+    let s = 0, m = 0;
+    for (let i = 0; i < n; i++) { const d = (P[i][0] - cu) * (P[i][0] - cu) + (P[i][1] - cv) * (P[i][1] - cv); s += d; if (d > m) m = d; }
+    return { n, cu, cv, rms: Math.sqrt(s / n), max: Math.sqrt(m) };
+  }
+
+  // ---- small Levenberg-Marquardt least squares ----
+  function ssq(r) { let s = 0; for (let i = 0; i < r.length; i++) { const v = r[i]; s += (v === v) ? v * v : 1e30; } return s; }
+  function solveLin(A, b) {
+    const n = b.length, M = A.map((row, i) => row.concat([b[i]]));
+    for (let c = 0; c < n; c++) {
+      let p = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      if (Math.abs(M[p][c]) < 1e-300) return null;
+      const tmp = M[c]; M[c] = M[p]; M[p] = tmp;
+      for (let r = c + 1; r < n; r++) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+    }
+    const x = new Array(n);
+    for (let r = n - 1; r >= 0; r--) { let s = M[r][n]; for (let k = r + 1; k < n; k++) s -= M[r][k] * x[k]; x[r] = s / M[r][r]; }
+    return x;
+  }
+  function lsq(x0, fn, scale, iters) {
+    const n = x0.length;
+    let x = x0.slice(), r = fn(x), f = ssq(r), mu = 1e-3;
+    for (let it = 0; it < (iters || 40); it++) {
+      const m = r.length, J = [];
+      for (let j = 0; j < n; j++) {
+        const h = scale[j] * 1e-6, keep = x[j];
+        x[j] = keep + h; const rp = fn(x); x[j] = keep - h; const rm = fn(x); x[j] = keep;
+        const col = new Array(m);
+        for (let i = 0; i < m; i++) col[i] = (rp[i] - rm[i]) / (2e-6);
+        J.push(col);
+      }
+      const A = [], g = [];
+      for (let a = 0; a < n; a++) {
+        A.push(new Array(n));
+        let gs = 0; for (let i = 0; i < m; i++) gs += J[a][i] * r[i]; g.push(-gs);
+      }
+      for (let a = 0; a < n; a++) for (let b = a; b < n; b++) { let s = 0; for (let i = 0; i < m; i++) s += J[a][i] * J[b][i]; A[a][b] = s; A[b][a] = s; }
+      let ok = false;
+      for (let tr = 0; tr < 12; tr++) {
+        const Ad = A.map((row, i) => row.map((v, j) => i === j ? v * (1 + mu) + 1e-300 : v));
+        const p = solveLin(Ad, g);
+        if (p) {
+          const xn = x.map((v, j) => v + p[j] * scale[j]), rn = fn(xn), fn2 = ssq(rn);
+          if (fn2 < f) { const gain = (f - fn2) / (f || 1); x = xn; r = rn; f = fn2; mu = Math.max(mu * 0.3, 1e-12); ok = gain > 1e-10; break; }
+        }
+        mu *= 6;
+      }
+      if (!ok) break;
+    }
+    return { x, f };
+  }
+
+  return { RAD, LAM, GLASS, nGlass, abbe, surf, sagU, dsagU, prep, trace, launch, toLocal, hit, hexapolar, bundle, bestW, spotStats, lsq };
+})();
+if (typeof module !== 'undefined') module.exports = OPT;
+
+</script>
+<script>
+/* Telescope prescriptions and analysis built on OPT. */
+const LAB = (function (OPT) {
+  'use strict';
+  const { RAD, LAM, nGlass, abbe, surf, sagU, prep, trace, launch, toLocal, hit, hexapolar, bundle, bestW, spotStats, lsq } = OPT;
+  const cache = new Map();
+  function memo(key, fn) {
+    if (cache.has(key)) return cache.get(key);
+    const v = fn();
+    if (cache.size > 400) cache.clear();
+    cache.set(key, v);
+    return v;
+  }
+  const IMG_Z = { u: [1, 0, 0], v: [0, 1, 0], w: [0, 0, 1] };
+  const IMG_ZN = { u: [1, 0, 0], v: [0, 1, 0], w: [0, 0, -1] };
+
+  // Focus of an on-axis meridional fan (rays in the v-w plane): least-squares crossing of the axis.
+  function axialFocus(Ls) {
+    let num = 0, den = 0;
+    for (const L of Ls) { const t = L[4] / L[5], b = L[1] - t * L[2]; num += b * t; den += t * t; }
+    return den > 0 ? -num / den : 0;
+  }
+  function fanLocal(sys, ys, theta) {
+    const out = [];
+    for (const y of ys) { const r = launch(sys, 0, y, theta || 0); trace(sys, r, true, null); out.push(toLocal(sys, r)); }
+    return out;
+  }
+  function zones(rm, N) { const ys = []; for (let i = 0; i < N; i++) ys.push(rm * Math.sqrt((i + 0.5) / N)); return ys; }
+
+  // Solve the r^4 and r^6 terms of an aspheric plate so the on-axis spot vanishes (d line).
+  function figurePlate(sys, plate, rm, f1) {
+    const n = nGlass(plate.glassBefore || 'N-BK7', LAM.d);
+    const s4 = 1 / (32 * (n - 1) * f1 * f1 * f1), s6 = s4 / (rm * rm);
+    const ys = zones(rm, 12);
+    prep(sys, LAM.d);
+    const fn = x => {
+      plate.a4 = x[0] * s4; plate.a6 = x[1] * s6; plate.a2 = -1.5 * rm * rm * plate.a4;
+      const Ls = fanLocal(sys, ys), W = axialFocus(Ls);
+      return Ls.map(L => L[1] + (W - L[2]) * L[4] / L[5]);
+    };
+    const r = lsq([0, 0], fn, [1, 1], 12);
+    fn(r.x);
+    return { a2: plate.a2, a4: plate.a4, a6: plate.a6 };
+  }
+
+  // ---------- two-mirror geometry ----------
+  function twoMirror(F1, F, D, b, kind) {
+    const f1 = D * F1, m = F / F1;
+    let d, pp, B, R2, c2, K1 = -1, K2 = 0;
+    if (kind === 'greg') {
+      d = (m * f1 + b) / (m - 1); pp = d - f1; B = m * pp; R2 = 2 * pp * B / (pp + B); c2 = 1 / R2;
+      K2 = -Math.pow((m - 1) / (m + 1), 2);
+    } else {
+      d = (m * f1 - b) / (m + 1); pp = f1 - d; B = m * pp; R2 = 2 * pp * m / (m - 1); c2 = -1 / R2;
+      const e2 = Math.pow((m + 1) / (m - 1), 2);
+      if (kind === 'cc') { K2 = -e2; }
+      else if (kind === 'rc') { K1 = -1 - 2 * B / (d * m * m * m); K2 = -1 - 2 / Math.pow(m - 1, 3) * (m * (2 * m - 1) + B / d); }
+      else if (kind === 'dk') { K2 = 0; K1 = -1 + (pp / f1) * (m - 1) * (m + 1) * (m + 1) / (m * m * m); }
+      else if (kind === 'sph') { K1 = 0; K2 = 0; }
+    }
+    return { f1, m, d, pp, B, R2, c2, K1, K2 };
+  }
+
+  // Size mirrors, lenses and holes so the chosen field passes: trace marginal rays and record footprints.
+  function autosize(sys, fieldDeg) {
+    const R = sys.stop.r, th = fieldDeg * RAD, S = sys.surfaces, mx = S.map(() => 0);
+    prep(sys, LAM.d);
+    for (const a of [0, th]) for (const q of [[0, R], [0, -R], [R, 0]]) {
+      const pts = [], r = launch(sys, q[0], q[1], a);
+      trace(sys, r, true, pts);
+      for (let i = 0; i < pts.length; i++) mx[i] = Math.max(mx[i], Math.hypot(pts[i][0], pts[i][1]));
+    }
+    S.forEach((s, i) => { if (s.auto) s.sd = mx[i] * s.auto + 0.5; });
+    S.forEach(s => { if (s.holeFrom != null) s.hole = Math.min(S[s.holeFrom].sd * (s.holeK || 1), sys.D * 0.47); });
+    let ob = 0;
+    S.forEach(s => { if (s.hole > 0 && (s.part === 'obs' || s.part === 'M1')) ob = Math.max(ob, s.hole); });
+    sys.obstruction = 2 * ob / sys.D;
+    return sys;
+  }
+
+  const B = {};   // builders
+
+  B.newton = function (p) {
+    const D = p.D, f = D * p.F, th = Math.tan(p.field * RAD);
+    const L = Math.min(0.8 * D + 40, 0.6 * f), zd = -(f - L);
+    const sdD = ((D / 2) * (L / f) + (f - L) * th) * 1.04 + 0.5;
+    const K1 = -1 + p.dK1, q = Math.SQRT1_2;
+    return {
+      D, surfaces: [
+        surf({ z: zd, hole: sdD, part: 'obs' }),
+        surf({ z: 0, c: -1 / (2 * f), k: K1, sd: D / 2 * 1.003 + 0.2, mode: 'mirror', back: 1, label: 'Primary', name: 'Primary mirror', part: 'M1' }),
+        surf({ type: 'fold', z: zd, ny: -q, nz: -q, sd: sdD, mode: 'mirror', label: 'Diagonal', name: 'Diagonal flat, 45°', part: 'M2' })
+      ],
+      stop: { z: 0, r: D / 2 }, zStart: zd - 0.5 * D,
+      image: { o: [0, L, zd], u: [1, 0, 0], v: [0, 0, 1], w: [0, 1, 0] },
+      obstruction: 2 * sdD / D, ideal: { K1: -1 }, conics: { K1 }
+    };
+  };
+
+  function cassBuild(p, kind) {
+    const D = p.D, F = Math.max(p.F, 1.5 * p.F1), b = p.b * D;
+    const g = twoMirror(p.F1, F, D, b, kind);
+    const K1 = g.K1 + p.dK1, K2 = g.K2 + p.dK2, d = g.d + p.dsp * D / 1000;
+    return autosize({
+      D, surfaces: [
+        surf({ z: -d, holeFrom: 2, part: 'obs' }),
+        surf({ z: 0, c: -1 / (2 * g.f1), k: K1, sd: D / 2 * 1.003 + 0.2, holeFrom: 3, mode: 'mirror', back: 1, label: 'Primary', name: 'Primary mirror', part: 'M1' }),
+        surf({ z: -d, c: g.c2, k: K2, auto: 1.03, mode: 'mirror', back: -1, label: 'Secondary', name: 'Secondary mirror', part: 'M2' }),
+        surf({ z: 0, auto: 1.12, part: 'baffle' })
+      ],
+      stop: { z: 0, r: D / 2 }, zStart: -d - 0.35 * D,
+      image: Object.assign({ o: [0, 0, b] }, IMG_Z),
+      ideal: { K1: g.K1, K2: g.K2 }, conics: { K1, K2 }
+    }, p.field);
+  }
+  B.cc = p => cassBuild(p, 'cc');
+  B.rc = p => cassBuild(p, 'rc');
+  B.dk = p => cassBuild(p, 'dk');
+  B.greg = p => cassBuild(p, 'greg');
+
+  B.schmidt = function (p) {
+    const D = p.D, f = D * p.F, R = 2 * f, th = Math.tan(p.field * RAD), t = Math.max(3, D / 35);
+    const sdI = Math.max(f * th * 1.1 + 2, 0.1 * D), sdP = D / 2 * 1.02 + 0.5;
+    const front = surf({ z: -R - t, sd: sdP, mode: 'refract', glass: 'N-BK7', name: 'Corrector plate, front', part: 'L1a' });
+    const plate = surf({ z: -R, sd: sdP, mode: 'refract', glass: null, glassBefore: 'N-BK7', label: 'Corrector', name: 'Corrector plate, back', part: 'L1b', asph: true });
+    const M1 = surf({ z: 0, c: -1 / R, k: 0, auto: 1.02, mode: 'mirror', back: 1, label: 'Spherical mirror', name: 'Primary mirror', part: 'M1' });
+    const sys = {
+      D, surfaces: [front, plate, surf({ z: -f, hole: sdI, part: 'obs' }), M1],
+      stop: { z: -R, r: D / 2 }, zStart: -R - t - 0.3 * D,
+      image: Object.assign({ o: [0, 0, -f] }, IMG_ZN),
+      ideal: { K1: 0 }, conics: { K1: p.dK1 }
+    };
+    const fig = memo('sch|' + D + '|' + p.F, () => figurePlate(sys, plate, D / 2, f));
+    const s = p.corr / 100;
+    plate.a2 = fig.a2 * s; plate.a4 = fig.a4 * s; plate.a6 = fig.a6 * s;
+    M1.k = p.dK1;
+    return autosize(sys, p.field);
+  };
+
+  B.sct = function (p) {
+    const D = p.D, F = Math.max(p.F, 1.5 * p.F1), b = p.b * D;
+    const g = twoMirror(p.F1, F, D, b, 'sph');
+    const K1 = p.dK1, K2 = p.dK2, t = Math.max(4, D / 40), gap = 0.03 * D + 1, sdP = D / 2 * 1.02 + 0.5;
+    const front = surf({ z: -g.d - gap - t, sd: sdP, mode: 'refract', glass: 'N-BK7', name: 'Corrector plate, front', part: 'L1a' });
+    const plate = surf({ z: -g.d - gap, sd: sdP, mode: 'refract', glass: null, glassBefore: 'N-BK7', label: 'Corrector', name: 'Corrector plate, back', part: 'L1b', asph: true });
+    const M1 = surf({ z: 0, c: -1 / (2 * g.f1), k: 0, auto: 1.02, holeFrom: 5, mode: 'mirror', back: 1, label: 'Primary', name: 'Primary mirror', part: 'M1' });
+    const M2 = surf({ z: -g.d, c: g.c2, k: 0, auto: 1.03, mode: 'mirror', back: -1, label: 'Secondary', name: 'Secondary mirror', part: 'M2' });
+    const obs = surf({ z: -g.d, holeFrom: 4, part: 'obs' });
+    const sys = {
+      D, surfaces: [front, plate, obs, M1, M2, surf({ z: 0, auto: 1.12, part: 'baffle' })],
+      stop: { z: plate.z, r: D / 2 }, zStart: front.z - 0.3 * D,
+      image: Object.assign({ o: [0, 0, b] }, IMG_Z),
+      ideal: { K1: 0, K2: 0 }, conics: { K1, K2 }
+    };
+    // Nominal design: plate figure plus secondary radius and spacing, so that the focal length and
+    // back focus come out as requested despite the plate's weak power.
+    const nom = memo('sct|' + [D, p.F1, F, p.b].join('|'), () => {
+      const n = nGlass('N-BK7', LAM.d), s4 = 1 / (32 * (n - 1) * Math.pow(g.f1, 3)), rm = D / 2, s6 = s4 / (rm * rm);
+      const ys = zones(rm, 12), f = D * F;
+      prep(sys, LAM.d);
+      const fn = x => {
+        plate.a4 = x[0] * s4; plate.a6 = x[1] * s6; plate.a2 = -1.5 * rm * rm * plate.a4;
+        M2.z = -g.d + x[2]; M2.c = g.c2 * (1 + x[3]);
+        const out = fanLocal(sys, ys).map(L => (L[1] - L[2] * L[4] / L[5]) * 50);
+        const Lp = fanLocal(sys, [rm * 0.01])[0];
+        out.push(Math.abs(rm * 0.01 / (Lp[4] / Lp[5])) - f);
+        return out;
+      };
+      const r = lsq([0, 0, 0, 0], fn, [1, 1, 1, 0.01], 25);
+      fn(r.x);
+      return { a2: plate.a2, a4: plate.a4, a6: plate.a6, z2: M2.z, c2: M2.c };
+    });
+    const dz = p.dsp * D / 1000;
+    M2.z = nom.z2 - dz; M2.c = nom.c2; obs.z = M2.z; M1.k = K1; M2.k = K2;
+    plate.z = nom.z2 - gap - dz; front.z = plate.z - t; sys.stop.z = plate.z; sys.zStart = front.z - 0.3 * D;
+    plate.a2 = nom.a2; plate.a4 = nom.a4; plate.a6 = nom.a6;
+    let fig = nom;
+    if (p.autoFig && (K1 || K2 || dz)) fig = memo('sctf|' + [D, p.F1, F, p.b, K1, K2, dz].join('|'), () => figurePlate(sys, plate, D / 2, g.f1));
+    const s = p.corr / 100;
+    plate.a2 = fig.a2 * s; plate.a4 = fig.a4 * s; plate.a6 = fig.a6 * s;
+    return autosize(sys, p.field);
+  };
+
+  // Gregory-Maksutov, f/15, all spherical; the secondary is an aluminised spot on the meniscus.
+  // Optimised for this lab; dimensions are ratios to the aperture.
+  const MAK_RX = { R1: -1.409816, R2: -1.483070, t: 0.120156, s: 2.486954, Rp: -6.024985, b: 0.55 };
+  B.mak = function (p, rx) {
+    rx = rx || MAK_RX;
+    const D = p.D, s = rx.s * D + p.dsp * D / 1000, zb = -s, zf = -s - rx.t * D;
+    return autosize({
+      D, surfaces: [
+        surf({ z: zf, c: 1 / (rx.R1 * D), sd: D / 2 + 0.2, mode: 'refract', glass: 'N-BK7', name: 'Meniscus, front', part: 'L1a' }),
+        surf({ z: zb, c: 1 / (rx.R2 * D), sd: D / 2 * 1.06, holeFrom: 3, mode: 'refract', glass: null, glassBefore: 'N-BK7', label: 'Meniscus', name: 'Meniscus, back', part: 'L1b' }),
+        surf({ z: 0, c: 1 / (rx.Rp * D), k: p.dK1, auto: 1.02, holeFrom: 4, mode: 'mirror', back: 1, label: 'Primary', name: 'Primary mirror', part: 'M1' }),
+        surf({ z: zb, c: 1 / (rx.R2 * D), auto: 1.04, mode: 'mirror', back: 0, label: 'Spot', name: 'Secondary (spot on meniscus)', part: 'M2' }),
+        surf({ z: 0, auto: 1.12, part: 'baffle' })
+      ],
+      stop: { z: zf, r: D / 2 }, zStart: zf - 0.3 * D,
+      image: Object.assign({ o: [0, 0, rx.b * D] }, IMG_Z),
+      ideal: { K1: 0 }, conics: { K1: p.dK1 }
+    }, p.field);
+  };
+
+  // Modified (corrected) Dall-Kirkham, f/6.8: ellipsoid primary, spherical secondary, two N-BK7 lenses.
+  // Optimised for this lab over a 1 degree field; dimensions are ratios to the aperture.
+  const CDK_RX = { f1: 3, K1: -0.689667, d: 1.818584, R2: 4.324826, z1: 0.051221, c1: 0.165175, c2: -0.887217, t1: 0.022, z2: 0.077220, c3: 2.168621, c4: 3.460853, t2: 0.022, b: 0.8 };
+  B.cdk = function (p, rx) {
+    rx = rx || CDK_RX;
+    const D = p.D, d = rx.d * D + p.dsp * D / 1000;
+    const K1 = rx.K1 + p.dK1, K2 = p.dK2;
+    const S = [
+      surf({ z: -d, holeFrom: 2, part: 'obs' }),
+      surf({ z: 0, c: -1 / (2 * rx.f1 * D), k: K1, sd: D / 2 * 1.003 + 0.2, holeFrom: 3, holeK: 1.1, mode: 'mirror', back: 1, label: 'Primary', name: 'Primary mirror', part: 'M1' }),
+      surf({ z: -d, c: -1 / (rx.R2 * D), k: K2, auto: 1.03, mode: 'mirror', back: -1, label: 'Secondary', name: 'Secondary mirror', part: 'M2' })
+    ];
+    if (!p.noCorr) {
+      S.push(surf({ z: rx.z1 * D, c: rx.c1 / D, auto: 1.06, mode: 'refract', glass: 'N-BK7', name: 'Corrector lens 1, front', part: 'L1a' }));
+      S.push(surf({ z: (rx.z1 + rx.t1) * D, c: rx.c2 / D, auto: 1.06, mode: 'refract', glass: null, glassBefore: 'N-BK7', label: 'Corrector', name: 'Corrector lens 1, back', part: 'L1b' }));
+      S.push(surf({ z: rx.z2 * D, c: rx.c3 / D, auto: 1.06, mode: 'refract', glass: 'N-BK7', name: 'Corrector lens 2, front', part: 'L2a' }));
+      S.push(surf({ z: (rx.z2 + rx.t2) * D, c: rx.c4 / D, auto: 1.06, mode: 'refract', glass: null, glassBefore: 'N-BK7', name: 'Corrector lens 2, back', part: 'L2b' }));
+    } else {
+      S.push(surf({ z: 0, auto: 1.12, part: 'baffle' }));
+    }
+    return autosize({
+      D, surfaces: S, stop: { z: 0, r: D / 2 }, zStart: -d - 0.35 * D,
+      image: Object.assign({ o: [0, 0, rx.b * D] }, IMG_Z),
+      ideal: { K1: rx.K1, K2: 0 }, conics: { K1, K2 }
+    }, p.field);
+  };
+
+  // ---------- refractors ----------
+  B.singlet = function (p) {
+    const D = p.D, f = D * p.F, n = nGlass('N-BK7', LAM.d), q = p.bend, R = D / 2;
+    const c1 = (q + 1) / (2 * f * (n - 1)), c2 = (q - 1) / (2 * f * (n - 1));
+    const sg = c => c * R * R / (1 + Math.sqrt(Math.max(0, 1 - c * c * R * R)));
+    const t = Math.max(0.03 * D + 1, sg(c1) - sg(c2) + 0.025 * D + 1);
+    return {
+      D, surfaces: [
+        surf({ z: 0, c: c1, sd: R * 1.02 + 0.3, mode: 'refract', glass: 'N-BK7', name: 'Lens, front', part: 'L1a' }),
+        surf({ z: t, c: c2, sd: R * 1.02 + 0.3, mode: 'refract', glass: null, glassBefore: 'N-BK7', label: 'N-BK7', name: 'Lens, back', part: 'L1b' })
+      ],
+      stop: { z: 0, r: R }, zStart: -0.3 * D - 10,
+      image: Object.assign({ o: [0, 0, f] }, IMG_Z), obstruction: 0, ideal: {}, conics: {}
+    };
+  };
+
+  function doubletSys(D, cs, t1, gap, t2, g1, g2, f) {
+    const R = D / 2, sd = R * 1.02 + 0.3;
+    return {
+      D, surfaces: [
+        surf({ z: 0, c: cs[0], sd, mode: 'refract', glass: g1, name: g1 + ', front', part: 'L1a' }),
+        surf({ z: t1, c: cs[1], sd, mode: 'refract', glass: null, glassBefore: g1, label: g1, name: g1 + ', back', part: 'L1b' }),
+        surf({ z: t1 + gap, c: cs[2], sd, mode: 'refract', glass: g2, name: g2 + ', front', part: 'L2a' }),
+        surf({ z: t1 + gap + t2, c: cs[3], sd, mode: 'refract', glass: null, glassBefore: g2, label: g2, name: g2 + ', back', part: 'L2b' })
+      ],
+      stop: { z: 0, r: R }, zStart: -0.3 * D - 10,
+      image: Object.assign({ o: [0, 0, f] }, IMG_Z), obstruction: 0, ideal: {}, conics: {}
+    };
+  }
+  // Air-spaced Fraunhofer doublet: solve the four curvatures for focal length, F-C colour, spherical aberration and coma.
+  function solveDoublet(D, F, g1, g2) {
+    const f = D * F, R = D / 2;
+    const n1 = nGlass(g1, LAM.d), n2 = nGlass(g2, LAM.d), V1 = abbe(g1), V2 = abbe(g2);
+    const p1 = V1 / (V1 - V2) / f, p2 = -V2 / (V1 - V2) / f;
+    const c1 = p1 / (2 * (n1 - 1)), c2 = -c1, c3 = c2 * 0.97, c4 = c3 - p2 / (n2 - 1);
+    const sg = c => c * R * R / 2;
+    const t1 = Math.max(0.06 * D, sg(c1) - sg(c2) + 0.03 * D) + 1, t2 = 0.05 * D + 1.5, gap = 0.012 * D + 0.3;
+    const th = 0.5 * RAD, hp = R * 0.02;
+    const fn = x => {
+      const sys = doubletSys(D, x, t1, gap, t2, g1, g2, f);
+      const cross = (lam, y) => { prep(sys, lam); const L = fanLocal(sys, [y])[0]; return L[2] - L[1] * L[5] / L[4]; };
+      prep(sys, LAM.d);
+      const Lp = fanLocal(sys, [hp])[0], efl = -hp / (Lp[4] / Lp[5]), wp = Lp[2] - Lp[1] * Lp[5] / Lp[4];
+      const wm = cross(LAM.d, R);
+      const wF = cross(LAM.F, 0.707 * R), wC = cross(LAM.C, 0.707 * R);
+      prep(sys, LAM.d);
+      const Lc = fanLocal(sys, [R, 0, -R], th).map(L => L[1] + (wp - L[2]) * L[4] / L[5]);
+      return [(efl - f) / F, wF - wC, wm - wp, ((Lc[0] + Lc[2]) / 2 - Lc[1]) * F * 30];
+    };
+    const r = lsq([c1, c2, c3, c4], fn, [1 / f, 1 / f, 1 / f, 1 / f], 40);
+    return { cs: r.x, t1, gap, t2, res: r.f };
+  }
+  function doublet(p, g1, g2) {
+    const sol = memo(['dbl', p.D, p.F, g1, g2].join('|'), () => solveDoublet(p.D, p.F, g1, g2));
+    return doubletSys(p.D, sol.cs, sol.t1, sol.gap, sol.t2, g1, g2, p.D * p.F);
+  }
+  B.achro = p => doublet(p, 'N-BK7', 'F2');
+  B.fluor = p => doublet(p, 'CaF2', 'N-BAK4');
+
+  // ---------- analysis ----------
+  function analyze(sys, o) {
+    const R = sys.stop.r, pupil = hexapolar(R, o.rings || 10), lams = o.lams, th = o.field * RAD;
+    const res = { ok: true };
+    const L0 = bundle(sys, 0, LAM.d, pupil, false);
+    res.throughput = L0.length / pupil.length;
+    if (L0.length < 6) { res.ok = false; return res; }
+    const Wb = bestW(L0);
+    res.Wbest = Wb;
+    // paraxial focal length
+    prep(sys, LAM.d);
+    const hp = R * 0.01, Lp = fanLocal(sys, [hp])[0];
+    res.efl = Math.abs(hp / (Math.hypot(Lp[3], Lp[4]) / Lp[5]));
+    res.fno = res.efl / sys.D;
+    res.Wparax = Lp[2] - Lp[1] * Lp[5] / Lp[4];
+    res.airy = 1.22 * LAM.d * res.fno;           // Airy radius, um
+    // tangential / sagittal field curves (d line), relative to the paraxial focus
+    const fmax = Math.max(o.field, 0.1), eps = R * 0.004;
+    res.fieldMax = fmax;
+    res.astig = [];
+    let cF = 0;
+    for (let i = 0; i <= 12; i++) {
+      const a = fmax * i / 12 * RAD, Ls = [[0, eps], [0, -eps], [eps, 0], [-eps, 0], [0, 0]].map(q => {
+        const r = launch(sys, q[0], q[1], a); trace(sys, r, true, null); return toLocal(sys, r);
+      });
+      const lin = (L, k) => { const s = L[3 + k] / L[5]; return [L[k] - s * L[2], s]; };
+      const t1 = lin(Ls[0], 1), t2 = lin(Ls[1], 1), s1 = lin(Ls[2], 0), s2 = lin(Ls[3], 0);
+      const wT = -(t1[0] - t2[0]) / (t1[1] - t2[1]) - res.Wparax, wS = -(s1[0] - s2[0]) / (s1[1] - s2[1]) - res.Wparax;
+      const ch = hit(Ls[4], res.Wparax, 0), h = Math.hypot(ch[0], ch[1]);
+      res.astig.push([fmax * i / 12, wT, wS, h]);
+      if (i === 12) { const dz = (wT + wS) / 2; cF = 2 * dz / (h * h + dz * dz); }
+    }
+    res.cField = cF;
+    res.defocus = (o.focPct || 0) / 100 * 16 * LAM.d * res.fno * res.fno / 1000 + (o.defocus || 0);
+    const W = Wb + res.defocus, cI = o.curved ? cF : 0;
+    res.W = W; res.cImg = cI;
+    sys.image.W = W; sys.image.cI = cI;
+    // spots
+    res.spots = [0, 0.7, 1].map(fr => {
+      const a = fr * th, sets = [], all = [];
+      let launched = 0;
+      for (const lam of lams) {
+        const pts = bundle(sys, a, lam, pupil, false).map(L => hit(L, W, cI));
+        sets.push(pts); launched += pupil.length;
+        for (const q of pts) all.push(q);
+      }
+      const st = spotStats(all);
+      return { frac: fr, angle: fr * o.field, sets, stats: st, h: Math.hypot(st.cu, st.cv), trans: all.length / launched };
+    });
+    res.vignette = Math.min(1, res.spots[2].trans / (res.spots[0].trans || 1));
+    // longitudinal aberration: where each zone crosses the axis, relative to the detector
+    res.lsa = lams.map(lam => {
+      prep(sys, lam);
+      const pts = [];
+      for (let i = 1; i <= 24; i++) {
+        const rho = i / 24, r = launch(sys, 0, rho * R, 0);
+        if (trace(sys, r, false, null) !== -1) { pts.push(null); continue; }
+        const L = toLocal(sys, r);
+        pts.push([L[2] - L[1] * L[5] / L[4] - W, rho]);
+      }
+      return pts;
+    });
+    return res;
+  }
+
+  // Meridional rays for the layout drawing, in (z, y).
+  function layoutRays(sys, thetaDeg, lam, n) {
+    prep(sys, lam);
+    const I = sys.image, R = sys.stop.r, out = [];
+    for (let i = 0; i < n; i++) {
+      const py = R * (n === 1 ? 0 : (2 * i / (n - 1) - 1)) * 0.985;
+      const r = launch(sys, 0, py, thetaDeg * RAD), pts = [[r.x, r.y, r.z]];
+      const dead = trace(sys, r, false, pts);
+      if (dead === -1) {
+        const tt = hit(toLocal(sys, r), I.W || 0, I.cI || 0)[2];
+        pts.push([r.x + tt * r.dx, r.y + tt * r.dy, r.z + tt * r.dz]);
+      }
+      out.push({ ok: dead === -1, pts: pts.map(q => [q[2], q[1]]) });
+    }
+    return out;
+  }
+
+  return { B, analyze, layoutRays, twoMirror, figurePlate, solveDoublet, doubletSys, fanLocal, axialFocus, zones, autosize, cache };
+})(typeof OPT !== 'undefined' ? OPT : require('./optics.js'));
+if (typeof module !== 'undefined') module.exports = LAB;
+
+</script>
+<script>
+/* Panel board: columns of panels that can be dragged between columns, with resizable column widths.
+   The arrangement is a per-viewer convenience kept in localStorage; the page works without it. */
+const BOARD = (function () {
+  'use strict';
+  const IDS = ['cat', 'bench', 'ctl', 'figs', 'spots', 'lsa', 'fld', 'about', 'rx'];
+  const DEFAULTS = {
+    1: { w: [1], p: [['cat', 'bench', 'ctl', 'figs', 'spots', 'lsa', 'fld', 'about', 'rx']] },
+    2: { w: [2.5, 1], p: [['cat', 'bench', 'figs', 'spots', 'lsa', 'fld', 'about', 'rx'], ['ctl']] },
+    3: { w: [0.82, 2.9, 1.05], p: [['cat'], ['bench', 'figs', 'spots', 'lsa', 'fld', 'about', 'rx'], ['ctl']] },
+    4: { w: [0.8, 2.7, 1.6, 1.05], p: [['cat'], ['bench', 'figs', 'about', 'rx'], ['spots', 'lsa', 'fld'], ['ctl']] }
+  };
+  const KEY = 'tol-layout';
+  const GRIP = '<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><g fill="currentColor"><circle cx="2" cy="3" r="1.4"/><circle cx="8" cy="3" r="1.4"/><circle cx="2" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="2" cy="13" r="1.4"/><circle cx="8" cy="13" r="1.4"/></g></svg>';
+  const CHEV = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  let board, live, onChange = function () {};
+  const panels = {};
+  let st = { custom: false, cols: null, shut: [] };
+  let drag = null;
+
+  const vw = () => document.documentElement.clientWidth;
+  const autoCols = () => { const w = vw(); return w < 760 ? 1 : w < 1180 ? 2 : w < 1750 ? 3 : 4; };
+  const hardMax = () => Math.max(1, Math.min(6, Math.floor(vw() / 280)));
+  const cols = () => Array.prototype.filter.call(board.children, e => e.classList.contains('col'));
+  const panelsOf = col => Array.prototype.filter.call(col.children, e => e.classList.contains('panel'));
+  const title = id => panels[id].getAttribute('data-title');
+
+  function defaults(n) { const d = DEFAULTS[n]; return d.p.map((ids, i) => ({ w: d.w[i], ids: ids.slice() })); }
+  function sanitize(list) {
+    if (!Array.isArray(list) || !list.length) return null;
+    const seen = {}, out = [];
+    list.slice(0, 6).forEach(c => {
+      if (!c || !Array.isArray(c.ids)) return;
+      const ids = c.ids.filter(id => IDS.indexOf(id) >= 0 && !seen[id] && (seen[id] = true));
+      out.push({ w: +c.w > 0.05 && +c.w < 100 ? +c.w : 1, ids });
+    });
+    if (!out.length) return null;
+    IDS.forEach(id => { if (!seen[id]) out[out.length - 1].ids.push(id); });
+    return out;
+  }
+  function load() {
+    try {
+      const j = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (j && j.v === 1) {
+        const c = j.custom ? sanitize(j.cols) : null;
+        st = { custom: !!c, cols: c, shut: Array.isArray(j.shut) ? j.shut.filter(id => IDS.indexOf(id) >= 0) : [] };
+      }
+    } catch (e) { /* storage unavailable: use the defaults */ }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ v: 1, custom: st.custom, cols: st.cols, shut: st.shut })); } catch (e) { /* ignore */ }
+  }
+  function effective() {
+    if (!st.custom || !st.cols) return defaults(autoCols());
+    const max = hardMax(), L = st.cols.map(c => ({ w: c.w, ids: c.ids.slice() }));
+    if (L.length > max) L.splice(max).forEach(c => { L[max - 1].ids = L[max - 1].ids.concat(c.ids); });
+    return L;
+  }
+  function readDom() {
+    return cols().map(c => ({ w: Math.round((parseFloat(c.style.flexGrow) || 1) * 1000) / 1000, ids: panelsOf(c).map(p => p.getAttribute('data-panel')) }));
+  }
+  function refresh() {
+    const cs = cols();
+    cs.forEach(c => c.classList.toggle('empty', !panelsOf(c).length && !c.querySelector('.ph')));
+    const ctl = panels.ctl;
+    ctl.classList.toggle('stick', cs.length > 1 && ctl.parentNode && ctl.parentNode.lastElementChild === ctl && !ctl.classList.contains('shut'));
+    const n = cs.length;
+    document.getElementById('col-n').textContent = n + (n === 1 ? ' column' : ' columns');
+    document.getElementById('col-minus').disabled = n <= 1;
+    document.getElementById('col-plus').disabled = n >= hardMax();
+    const one = hardMax() <= 1;
+    ['col-minus', 'col-n', 'col-plus'].forEach(id => { document.getElementById(id).hidden = one; });
+    onChange();
+  }
+  function commit() { st.cols = readDom(); st.custom = true; save(); refresh(); }
+
+  function gutter() {
+    const g = document.createElement('div');
+    g.className = 'gut';
+    g.setAttribute('role', 'separator'); g.setAttribute('aria-orientation', 'vertical'); g.setAttribute('tabindex', '0');
+    g.setAttribute('aria-label', 'Resize the columns on either side. Use the left and right arrow keys.');
+    let s = null;
+    const begin = () => {
+      const a = g.previousElementSibling, b = g.nextElementSibling;
+      const a0 = a.getBoundingClientRect().width, b0 = b.getBoundingClientRect().width;
+      return { a, b, a0, sum: a0 + b0, wsum: (parseFloat(a.style.flexGrow) || 1) + (parseFloat(b.style.flexGrow) || 1) };
+    };
+    const apply = (q, px) => {
+      const min = Math.min(170, q.sum / 3), na = Math.max(min, Math.min(q.sum - min, px));
+      q.a.style.flexGrow = (q.wsum * na / q.sum).toFixed(4);
+      q.b.style.flexGrow = (q.wsum * (1 - na / q.sum)).toFixed(4);
+      onChange();
+    };
+    g.addEventListener('pointerdown', e => {
+      if (e.button) return;
+      e.preventDefault();
+      s = begin(); s.x = e.clientX;
+      g.classList.add('on'); document.documentElement.classList.add('dragging');
+      try { g.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    });
+    g.addEventListener('pointermove', e => { if (s) apply(s, s.a0 + e.clientX - s.x); });
+    const end = () => { if (!s) return; s = null; g.classList.remove('on'); document.documentElement.classList.remove('dragging'); commit(); };
+    g.addEventListener('pointerup', end);
+    g.addEventListener('pointercancel', end);
+    g.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const q = begin();
+      apply(q, q.a0 + (e.key === 'ArrowLeft' ? -24 : 24));
+      commit();
+    });
+    return g;
+  }
+  function render() {
+    const L = effective();
+    IDS.forEach(id => { if (panels[id].parentNode) panels[id].parentNode.removeChild(panels[id]); });
+    board.textContent = '';
+    board.setAttribute('data-cols', String(L.length));
+    L.forEach((c, i) => {
+      if (i) board.appendChild(gutter());
+      const col = document.createElement('div');
+      col.className = 'col';
+      col.style.flexGrow = String(c.w);
+      c.ids.forEach(id => col.appendChild(panels[id]));
+      board.appendChild(col);
+    });
+    refresh();
+  }
+
+  // ---- dragging a panel ----
+  function place(d) {
+    d.panel.style.left = (d.x - d.ox) + 'px';
+    d.panel.style.top = (d.y - d.oy) + 'px';
+    let best = null, bd = Infinity;
+    cols().forEach(c => {
+      const r = c.getBoundingClientRect(), dx = d.x < r.left ? r.left - d.x : d.x > r.right ? d.x - r.right : 0;
+      if (dx < bd) { bd = dx; best = c; }
+    });
+    if (!best) return;
+    let before = null;
+    const kids = panelsOf(best).filter(k => k !== d.panel);
+    for (let i = 0; i < kids.length; i++) {
+      const r = kids[i].getBoundingClientRect();
+      if (d.y < r.top + r.height / 2) { before = kids[i]; break; }
+    }
+    let nx = d.ph.nextElementSibling;
+    if (nx === d.panel) nx = nx.nextElementSibling;
+    if (d.ph.parentNode !== best || nx !== before) {
+      best.insertBefore(d.ph, before);
+      cols().forEach(c => c.classList.toggle('empty', !panelsOf(c).length && !c.querySelector('.ph')));
+    }
+  }
+  function lift(d) {
+    const r = d.panel.getBoundingClientRect(), w = Math.min(r.width, 460);
+    d.ox = Math.min(d.sx - r.left, w - 20); d.oy = d.sy - r.top;
+    d.ph = document.createElement('div');
+    d.ph.className = 'ph';
+    d.ph.style.height = Math.min(r.height, 120) + 'px';
+    d.panel.parentNode.insertBefore(d.ph, d.panel);
+    d.panel.classList.remove('stick');
+    d.panel.classList.add('drag');
+    d.panel.style.width = w + 'px';
+    document.documentElement.classList.add('dragging');
+    d.moved = true;
+    const tick = () => {
+      if (drag !== d) return;
+      const H = window.innerHeight;
+      let dy = 0;
+      if (d.y < 70) dy = -Math.ceil((70 - d.y) / 4); else if (d.y > H - 70) dy = Math.ceil((d.y - (H - 70)) / 4);
+      if (dy) { window.scrollBy(0, dy); place(d); }
+      d.raf = requestAnimationFrame(tick);
+    };
+    d.raf = requestAnimationFrame(tick);
+  }
+  function drop(d, cancel) {
+    if (drag !== d) return;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    if (!d.moved) return;
+    if (!cancel) d.ph.parentNode.insertBefore(d.panel, d.ph);
+    if (d.ph.parentNode) d.ph.parentNode.removeChild(d.ph);
+    d.panel.classList.remove('drag');
+    d.panel.style.width = ''; d.panel.style.left = ''; d.panel.style.top = '';
+    document.documentElement.classList.remove('dragging');
+    if (cancel) refresh(); else commit();
+  }
+  function say(id) {
+    const p = panels[id], cs = cols(), ci = cs.indexOf(p.parentNode);
+    live.textContent = title(id) + ' moved to column ' + (ci + 1) + ', position ' + (panelsOf(p.parentNode).indexOf(p) + 1) + '.';
+  }
+  function chrome(id) {
+    const p = panels[id], t = p.querySelector('.p-t'), body = p.querySelector('.p-b');
+    const head = document.createElement('div');
+    head.className = 'p-h';
+    const grip = document.createElement('button');
+    grip.type = 'button'; grip.className = 'grip'; grip.innerHTML = GRIP;
+    grip.setAttribute('aria-label', 'Move the ' + title(id) + ' panel. Drag it, or use the arrow keys.');
+    grip.title = 'Drag to move';
+    const fold = document.createElement('button');
+    fold.type = 'button'; fold.className = 'fold'; fold.innerHTML = CHEV;
+    const setShut = shut => {
+      p.classList.toggle('shut', shut);
+      body.hidden = shut;
+      fold.setAttribute('aria-expanded', shut ? 'false' : 'true');
+      fold.setAttribute('aria-label', (shut ? 'Show the ' : 'Hide the ') + title(id) + ' panel');
+    };
+    p.setShut = setShut;
+    setShut(st.shut.indexOf(id) >= 0);
+    fold.addEventListener('click', () => {
+      const shut = !p.classList.contains('shut');
+      setShut(shut);
+      st.shut = st.shut.filter(x => x !== id);
+      if (shut) st.shut.push(id);
+      save(); refresh();
+    });
+    p.insertBefore(head, t);
+    head.appendChild(grip); head.appendChild(t); head.appendChild(fold);
+
+    grip.addEventListener('pointerdown', e => {
+      if (e.button || drag) return;
+      e.preventDefault();
+      drag = { panel: p, grip, id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, moved: false };
+      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    });
+    grip.addEventListener('pointermove', e => {
+      const d = drag;
+      if (!d || d.panel !== p || e.pointerId !== d.id) return;
+      d.x = e.clientX; d.y = e.clientY;
+      if (!d.moved) { if (Math.hypot(d.x - d.sx, d.y - d.sy) < 5) return; lift(d); }
+      place(d);
+    });
+    grip.addEventListener('pointerup', () => { if (drag && drag.panel === p) drop(drag, false); });
+    grip.addEventListener('pointercancel', () => { if (drag && drag.panel === p) drop(drag, true); });
+    grip.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && drag && drag.panel === p) { drop(drag, true); return; }
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.key) < 0 || drag) return;
+      e.preventDefault();
+      const col = p.parentNode, sib = panelsOf(col), i = sib.indexOf(p), cs = cols(), ci = cs.indexOf(col);
+      if (e.key === 'ArrowUp' && i > 0) col.insertBefore(p, sib[i - 1]);
+      else if (e.key === 'ArrowDown' && i < sib.length - 1) col.insertBefore(p, sib[i + 1].nextSibling);
+      else if (e.key === 'ArrowLeft' && ci > 0) { const k = panelsOf(cs[ci - 1]); cs[ci - 1].insertBefore(p, k[Math.min(i, k.length)] || null); }
+      else if (e.key === 'ArrowRight' && ci < cs.length - 1) { const k = panelsOf(cs[ci + 1]); cs[ci + 1].insertBefore(p, k[Math.min(i, k.length)] || null); }
+      else return;
+      commit(); grip.focus(); say(id);
+    });
+  }
+
+  function init(cb) {
+    onChange = cb || onChange;
+    board = document.getElementById('board');
+    live = document.getElementById('live');
+    Array.prototype.forEach.call(board.querySelectorAll('.panel'), p => { panels[p.getAttribute('data-panel')] = p; });
+    load();
+    IDS.forEach(chrome);
+    document.getElementById('col-plus').addEventListener('click', () => {
+      const L = effective();
+      if (L.length >= hardMax()) return;
+      L.push({ w: L.reduce((a, c) => a + c.w, 0) / L.length, ids: [] });
+      st.cols = L; st.custom = true; save(); render();
+    });
+    document.getElementById('col-minus').addEventListener('click', () => {
+      const L = effective();
+      if (L.length <= 1) return;
+      const last = L.pop();
+      L[L.length - 1].ids = L[L.length - 1].ids.concat(last.ids);
+      st.cols = L; st.custom = true; save(); render();
+    });
+    document.getElementById('lay-reset').addEventListener('click', () => {
+      st = { custom: false, cols: null, shut: [] };
+      IDS.forEach(id => panels[id].setShut(false));
+      save(); render();
+    });
+    render();
+    window.addEventListener('resize', () => { if (drag) return; if (effective().length !== cols().length) render(); else refresh(); });
+    if (window.ResizeObserver) {
+      const seen = new Map();
+      const ro = new ResizeObserver(es => {
+        let ch = false;
+        es.forEach(en => { const w = Math.round(en.contentRect.width); if (seen.get(en.target) !== w) { seen.set(en.target, w); ch = true; } });
+        if (ch) onChange();
+      });
+      IDS.forEach(id => ro.observe(panels[id]));
+    }
+  }
+  return { init };
+})();
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const { LAM, RAD } = OPT;
+  const $ = (s, root) => (root || document).querySelector(s);
+  function h(tag, attrs, kids) {
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    if (kids) for (const c of kids) if (c) e.appendChild(c);
+    return e;
+  }
+
+  const WL = {
+    g: { key: 'g', lam: LAM.g, name: 'g · 436 nm' },
+    F: { key: 'F', lam: LAM.F, name: 'F · 486 nm' },
+    d: { key: 'd', lam: LAM.d, name: 'd · 588 nm' },
+    C: { key: 'C', lam: LAM.C, name: 'C · 656 nm' }
+  };
+  const SPEC = { d: ['d'], FdC: ['F', 'd', 'C'], gFdC: ['g', 'F', 'd', 'C'] };
+  const DEF = { D: 200, F: 5, F1: 3, b: 0.8, field: 0.4, dK1: 0, dK2: 0, dsp: 0, corr: 100, bend: 1, autoFig: false, noCorr: false, foc: 0, curved: false, spec: 'FdC' };
+
+  function conicName(K) {
+    if (Math.abs(K) < 0.0005) return 'sphere';
+    if (Math.abs(K + 1) < 0.0005) return 'paraboloid';
+    if (K > 0) return 'oblate ellipsoid';
+    return K > -1 ? 'ellipsoid' : 'hyperboloid';
+  }
+  function bendName(q) {
+    if (Math.abs(q - 1) < 0.03) return 'plano-convex, curve to the sky';
+    if (Math.abs(q + 1) < 0.03) return 'plano-convex, flat to the sky';
+    if (Math.abs(q) < 0.03) return 'equiconvex';
+    return Math.abs(q) < 1 ? 'biconvex' : 'meniscus';
+  }
+  const sgn = (v, n) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(n);
+  const num = (v, n) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(n);
+
+  const CTL = {
+    D: { label: 'Aperture', group: 'Telescope', fmt: v => v.toFixed(0) + ' mm' },
+    F1: { label: 'Primary focal ratio', group: 'Telescope', fmt: v => 'f/' + v.toFixed(1) },
+    F: { label: 'Focal ratio', group: 'Telescope', fmt: v => 'f/' + v.toFixed(1) },
+    b: { label: 'Focus behind the primary', group: 'Telescope', fmt: (v, p) => (v * p.D).toFixed(0) + ' mm' },
+    bend: { label: 'Lens shape factor q', group: 'Telescope', fmt: v => num(v, 2), sub: v => bendName(v) },
+    field: { label: 'Star distance off axis', group: 'Star and detector', fmt: v => v.toFixed(2) + '°' },
+    foc: { label: 'Focus shift', group: 'Star and detector', fmt: (v, p, sys, res) => res && res.ok ? (Math.abs(res.defocus) < 0.1 ? sgn(res.defocus * 1000, 0) + ' µm' : sgn(res.defocus, 2) + ' mm') : '–' },
+    dK1: { label: 'Primary conic K₁', group: 'Experiment', fmt: (v, p, sys) => num(sys.conics.K1, 3), sub: (v, p, sys) => conicName(sys.conics.K1) },
+    dK2: { label: 'Secondary conic K₂', group: 'Experiment', fmt: (v, p, sys) => num(sys.conics.K2, 3), sub: (v, p, sys) => conicName(sys.conics.K2) },
+    dsp: { label: 'Mirror spacing error', group: 'Experiment', fmt: (v, p) => sgn(v * p.D / 1000, 2) + ' mm' },
+    corr: { label: 'Corrector strength', group: 'Experiment', fmt: v => v.toFixed(0) + ' %' }
+  };
+  const CHK = {
+    curved: { label: 'Curve the detector to fit the field', group: 'Star and detector' },
+    autoFig: { label: 'Re-figure the corrector for these mirrors', group: 'Experiment' },
+    noCorr: { label: 'Take out the corrector lenses', group: 'Experiment' }
+  };
+  const FIELD = (max, def) => ['field', 0, max, 0.01, def];
+  const FOC = ['foc', -100, 100, 1, 0];
+
+  const DESIGNS = [
+    {
+      id: 'newton', group: 'Reflectors', name: 'Newtonian', recipe: 'Paraboloid primary · flat diagonal',
+      about: 'One paraboloid brings on-axis starlight to a perfect focus, and a flat mirror at 45° sends it out through the side of the tube. Off axis the image is limited by coma, which grows in step with the field angle and gets worse quickly as the focal ratio drops.',
+      tries: ['Slide K₁ from −1 to 0. The mirror becomes a sphere, and at f/5 spherical aberration swamps the image. Then raise the focal ratio towards f/10 and watch the sphere become usable.',
+        'Go from f/8 to f/4 at the same field angle. The coma flare doubles in microns while the Airy disc halves, so it is four times worse against the diffraction limit.'],
+      ctl: [['D', 80, 500, 1, 200], ['F', 3, 10, 0.1, 5], FIELD(1.5, 0.4), FOC, ['dK1', -1, 1.5, 0.005, 0]], chk: ['curved']
+    },
+    {
+      id: 'cc', group: 'Reflectors', name: 'Classical Cassegrain', recipe: 'Paraboloid primary · convex hyperboloid secondary',
+      about: 'A convex secondary multiplies the primary’s focal length and folds the beam back through a hole in the primary. Each mirror is free of spherical aberration on its own. Coma is the same as for a single paraboloid of the full system focal ratio, so a long Cassegrain has a much cleaner field than a fast Newtonian.',
+      tries: ['Note the edge-of-field spot, then open the Ritchey–Chrétien and the Dall–Kirkham and compare.',
+        'Move K₂ towards 0. A secondary that is not hyperbolic enough leaves spherical aberration that no refocusing removes.',
+        'Add 1 mm of mirror spacing error and watch how far the focus runs. The secondary’s magnification works as a lever.'],
+      ctl: [['D', 100, 600, 1, 250], ['F1', 2, 4, 0.1, 3], ['F', 7, 20, 0.1, 10], ['b', 0.3, 1.5, 0.01, 0.8], FIELD(0.8, 0.3), FOC, ['dK1', -1, 1, 0.005, 0], ['dK2', -5, 5, 0.02, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved']
+    },
+    {
+      id: 'rc', group: 'Reflectors', name: 'Ritchey–Chrétien', recipe: 'Hyperboloid primary · hyperboloid secondary',
+      about: 'Both mirrors are made a little more hyperbolic than in a classical Cassegrain, so that spherical aberration and coma cancel together. What is left is astigmatism and a strongly curved field. Hubble and most large professional telescopes are built this way.',
+      tries: ['Tick the curved detector. The off-axis spots shrink to the astigmatism that remains once field curvature is out of the way.',
+        'Nudge the mirror spacing. Spherical aberration only cancels at one spacing, which is why these telescopes are fussy about spacing and collimation.',
+        'Lower the primary focal ratio and watch the field curve more strongly in the plot below.'],
+      ctl: [['D', 100, 600, 1, 250], ['F1', 2, 4, 0.1, 3], ['F', 7, 20, 0.1, 8], ['b', 0.3, 1.5, 0.01, 0.9], FIELD(0.8, 0.4), FOC, ['dK1', -1, 1, 0.005, 0], ['dK2', -5, 5, 0.02, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved']
+    },
+    {
+      id: 'dk', group: 'Reflectors', name: 'Dall–Kirkham', recipe: 'Ellipsoid primary · spherical secondary',
+      about: 'A spherical secondary is easy to make and to test, and an under-corrected, ellipsoidal primary makes up for it on axis. The price is coma several times larger than a classical Cassegrain’s, so the design is used at long focal ratios on small fields, mostly for planets.',
+      tries: ['Compare the edge-of-field spot with the classical Cassegrain at the same focal ratios.',
+        'Reduce the field angle until the edge spot fits inside the Airy circle. That is the usable field: a few arcminutes.',
+        'Open the Modified Dall–Kirkham to see the same two mirrors with a lens corrector added.'],
+      ctl: [['D', 100, 600, 1, 250], ['F1', 2, 4, 0.1, 3], ['F', 7, 20, 0.1, 12], ['b', 0.3, 1.5, 0.01, 0.8], FIELD(0.8, 0.25), FOC, ['dK1', -1, 1, 0.005, 0], ['dK2', -5, 5, 0.02, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved']
+    },
+    {
+      id: 'greg', group: 'Reflectors', name: 'Gregorian', recipe: 'Paraboloid primary · concave ellipsoid secondary',
+      about: 'The secondary sits beyond the primary’s focus and re-images it with a concave ellipsoid. The tube is longer than a Cassegrain’s, but the image is upright, there is a real prime focus where a field stop can go, and a concave secondary is easier to test. Solar telescopes use it, and so do the Magellan telescopes and the Large Binocular Telescope.',
+      tries: ['Compare the optics length with a classical Cassegrain at the same two focal ratios.',
+        'Look at the field curvature plot: the field bends the opposite way to a Cassegrain’s.',
+        'Lower the system focal ratio and watch the secondary, and the central obstruction, grow.'],
+      ctl: [['D', 100, 600, 1, 250], ['F1', 2, 4, 0.1, 3], ['F', 10, 25, 0.1, 15], ['b', 0.3, 1.5, 0.01, 0.8], FIELD(0.5, 0.2), FOC, ['dK1', -1, 1, 0.005, 0], ['dK2', -1, 1, 0.005, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved']
+    },
+    {
+      id: 'schmidt', group: 'Catadioptrics', name: 'Schmidt camera', recipe: 'Aspheric corrector plate · spherical mirror', glass: true, curved: true,
+      about: 'With the aperture stop at the mirror’s centre of curvature, every star sees the same spherical mirror, so there is no coma and no astigmatism. A thin aspheric plate at the stop cancels the spherical aberration. The focus lies on a sphere half-way to the mirror, with a radius equal to the focal length.',
+      tries: ['Untick the curved detector to see why Schmidt cameras used bent film.',
+        'Take the corrector strength down to 0 %. What is left is a bare f/2 spherical mirror.',
+        'Compare one colour with three. The plate is a very weak lens, so a little colour error creeps in.'],
+      ctl: [['D', 100, 400, 1, 200], ['F', 1.5, 4, 0.1, 2], FIELD(5, 2.5), FOC, ['corr', 0, 150, 1, 100], ['dK1', -1, 0.5, 0.005, 0]], chk: ['curved']
+    },
+    {
+      id: 'sct', group: 'Catadioptrics', name: 'Schmidt–Cassegrain', recipe: 'Schmidt corrector · spherical primary · spherical secondary', glass: true,
+      about: 'A fast spherical primary and a small spherical secondary fold a long focal length into a short tube, and a Schmidt plate at the front corrects the spherical aberration of both. Coma and field curvature remain off axis. Focusing is done by moving the primary, which shifts the focus by many times the mirror travel.',
+      tries: ['Add 2 mm of mirror spacing error. The focus moves about 50 mm and a little spherical aberration appears.',
+        'Tick “re-figure the corrector”, then lower K₂ to about −0.9. The coma goes. Coma-free Schmidt–Cassegrains use an aspheric secondary in just this way. Add the curved detector to see what is left.',
+        'Set the corrector strength to 0 % to see the uncorrected f/2 sphere.'],
+      ctl: [['D', 100, 400, 1, 203], ['F1', 1.8, 3, 0.1, 2], ['F', 6.3, 12, 0.1, 10], ['b', 0.5, 1.5, 0.01, 0.9], FIELD(0.8, 0.3), FOC, ['corr', 0, 150, 1, 100], ['dK1', -1.5, 0.5, 0.005, 0], ['dK2', -3, 1, 0.01, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved', 'autoFig']
+    },
+    {
+      id: 'mak', group: 'Catadioptrics', name: 'Maksutov–Cassegrain', recipe: 'Meniscus corrector · spherical primary · aluminised spot', glass: true, fixed: 'f/15',
+      about: 'A thick, steeply curved meniscus corrects the spherical primary, and its thickness is chosen so that its own colour error nearly cancels. In this Gregory form the secondary is just an aluminised spot on the back of the meniscus, so every surface is a sphere. The prescription was optimised for this lab at f/15 and scales with the aperture.',
+      tries: ['Look at the focus-by-zone plot. The curve bends back on itself: that zonal error is what limits all-spherical Maksutovs.',
+        'Raise the aperture to 300 mm. The spots grow with the telescope while the Airy disc stays the same size.',
+        'Shift the mirror spacing, which is how these telescopes focus, and watch the focus run and the correction change.'],
+      ctl: [['D', 90, 300, 1, 150], FIELD(0.6, 0.3), FOC, ['dK1', -0.5, 0.5, 0.005, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved']
+    },
+    {
+      id: 'cdk', group: 'Catadioptrics', name: 'Modified Dall–Kirkham', recipe: 'Ellipsoid primary · spherical secondary · two-lens corrector', glass: true, fixed: 'f/6.8',
+      about: 'Also sold as the corrected Dall–Kirkham. It keeps the easily made spherical secondary and adds two small lenses near the focus that remove the coma, flatten the field and cancel the astigmatism. The primary’s ellipse is figured to work with the lenses. The prescription was optimised for this lab at f/6.8 over a 1° field and scales with the aperture.',
+      tries: ['Take out the corrector lenses. What is left is a Dall–Kirkham with its coma back, and a primary that no longer matches.',
+        'Compare the field curvature plot with the Ritchey–Chrétien’s. Here the two curves stay together and close to the detector.',
+        'Compare one colour with three. Both lenses are the same crown glass in a slow beam, so they add almost no colour.'],
+      ctl: [['D', 250, 700, 1, 432], FIELD(0.8, 0.5), FOC, ['dK1', -0.5, 0.5, 0.005, 0], ['dK2', -2, 1, 0.01, 0], ['dsp', -20, 20, 0.1, 0]], chk: ['curved', 'noCorr']
+    },
+    {
+      id: 'singlet', group: 'Refractors', name: 'Singlet lens', recipe: 'One crown-glass lens', glass: true,
+      about: 'A single lens focuses each colour at a different distance, because glass bends blue light more than red. Early refractors were made enormously long to keep that colour blur tolerable. The shape of the lens matters too: bending it changes spherical aberration and coma without changing the focal length.',
+      tries: ['Switch to one colour and sweep the shape factor. Spherical aberration is smallest near q = 0.7, close to a plano-convex lens with its curve to the sky.',
+        'Set q to −1 to turn the plano-convex lens around, and see the spot grow.',
+        'With three colours, raise the focal ratio to f/30 and beyond to see why 17th-century telescopes were so long.'],
+      ctl: [['D', 40, 150, 1, 80], ['F', 5, 40, 0.5, 12], ['bend', -2, 3, 0.01, 1], FIELD(1, 0.3), FOC], chk: ['curved']
+    },
+    {
+      id: 'achro', group: 'Refractors', name: 'Achromatic doublet', recipe: 'Crown + flint, air-spaced (Fraunhofer)', glass: true,
+      about: 'A positive crown lens and a weaker negative flint lens bring red and blue to the same focus, and the four curvatures are chosen to remove spherical aberration and coma as well. Yellow-green still focuses a little short of red and blue. That is the secondary spectrum, seen as a violet halo round bright stars. The lab solves the four radii again for every aperture and focal ratio you set.',
+      tries: ['Look at the focus-by-zone plot: the F and C curves cross each other while d sits apart from both.',
+        'Lower the focal ratio to f/5. The colour error stays about the same in millimetres, but the steeper light cone turns it into a much larger blur.',
+        'Add the violet g line to see the halo that gives achromats their reputation.'],
+      ctl: [['D', 50, 200, 1, 100], ['F', 5, 20, 0.1, 10], FIELD(1, 0.5), FOC], chk: ['curved']
+    },
+    {
+      id: 'fluor', group: 'Refractors', name: 'Fluorite doublet', recipe: 'Calcium fluoride + crown glass apochromat', glass: true,
+      about: 'Calcium fluoride has very low dispersion and an unusual spread of that dispersion across the spectrum. Paired with a glass that matches it, it cuts the secondary spectrum to a fraction of an achromat’s. Fluorite and ED-glass apochromats work on this principle. The lab solves the radii for CaF₂ with Schott N-BAK4.',
+      tries: ['Compare the three-colour spot with the achromat’s at the same aperture and focal ratio.',
+        'Go down to f/6. The colour stays good, but the steep fluorite curves leave zonal spherical aberration.',
+        'Add the violet g line and compare with the achromat again.'],
+      ctl: [['D', 50, 200, 1, 100], ['F', 6, 15, 0.1, 8], FIELD(1, 0.5), FOC], chk: ['curved']
+    }
+  ];
+  const BY_ID = {};
+  DESIGNS.forEach(d => {
+    BY_ID[d.id] = d;
+    d.def = Object.assign({}, DEF, { curved: !!d.curved });
+    d.ctl.forEach(c => { d.def[c[0]] = c[4]; });
+  });
+
+  const state = { id: 'rc', p: {}, stretch: true };
+  DESIGNS.forEach(d => { state.p[d.id] = Object.assign({}, d.def); });
+  try {
+    const hash = (location.hash || '').replace('#', '');
+    const saved = localStorage.getItem('tol-design');
+    if (BY_ID[hash]) state.id = hash; else if (BY_ID[saved]) state.id = saved;
+  } catch (e) { /* storage unavailable */ }
+
+  // ---------- colours ----------
+  let C = {};
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+    C = {
+      panel: g('--panel'), ink: g('--ink'), ink2: g('--ink-2'), ink3: g('--ink-3'), line: g('--line'), line2: g('--line-2'),
+      rayA: g('--brass-fill'), rayB: g('--sky'), glass: g('--glass'), glassEdge: g('--glass-edge'), mirror: g('--mirror'), mirrorEdge: g('--mirror-edge'),
+      sensor: g('--sensor'), band: g('--band'), g: g('--wl-g'), F: g('--wl-F'), d: g('--wl-d'), C: g('--wl-C')
+    };
+  }
+  const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
+  function fit(cv) {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const W = Math.max(20, Math.round(r.width)), H = Math.max(20, Math.round(r.height));
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    return { ctx, W, H };
+  }
+  function nice(x) {
+    if (!(x > 0)) return 1;
+    const e = Math.pow(10, Math.floor(Math.log10(x))), m = x / e;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * e;
+  }
+  function niceDown(x) {
+    const e = Math.pow(10, Math.floor(Math.log10(x))), m = x / e;
+    return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * e;
+  }
+  function fmtLen(mm) {
+    const um = mm * 1000;
+    if (um < 0.95) return um.toFixed(2) + ' µm';
+    if (um < 9.5) return um.toFixed(1) + ' µm';
+    if (um < 950) return um.toFixed(0) + ' µm';
+    return mm < 9.5 ? mm.toFixed(1) + ' mm' : mm.toFixed(0) + ' mm';
+  }
+
+  // ---------- bench drawing ----------
+  function geometry(sys) {
+    const S = sys.surfaces, shapes = [], labels = [];
+    const prof = (s, ya, yb, n) => {
+      const pts = [];
+      for (let i = 0; i <= n; i++) { const y = ya + (yb - ya) * i / n, sg = OPT.sagU(s, y * y); if (sg === sg) pts.push([s.z + sg, y]); }
+      return pts;
+    };
+    for (let i = 0; i < S.length; i++) {
+      const s = S[i];
+      if (s.part === 'obs' || s.part === 'baffle') continue;
+      if (s.type === 'fold') {
+        const t = sys.D * 0.03 * Math.SQRT1_2, a = [s.z - s.sd, s.sd], b = [s.z + s.sd, -s.sd];
+        shapes.push({ kind: 'mirror', poly: [a, b, [b[0] - t, b[1] - t], [a[0] - t, a[1] - t]], face: [a, b] });
+        labels.push({ text: s.label, z: s.z, top: s.sd, bot: -s.sd });
+        continue;
+      }
+      if (/^L\da$/.test(s.part)) {
+        const t = S[i + 1], sd = Math.min(s.sd, t.sd);
+        shapes.push({ kind: 'lens', poly: prof(s, -sd, sd, 48).concat(prof(t, -sd, sd, 48).reverse()) });
+        const lab = s.label || t.label;
+        if (lab) labels.push({ text: lab, z: (s.z + t.z) / 2, top: sd, bot: -sd });
+        i++;
+        continue;
+      }
+      if (s.mode === 'mirror') {
+        const segs = s.hole > 0 ? [[s.hole, s.sd], [-s.sd, -s.hole]] : [[-s.sd, s.sd]];
+        const faces = segs.map(g => prof(s, g[0], g[1], 40));
+        if (s.back) {
+          let zb = s.back > 0 ? -Infinity : Infinity;
+          faces.forEach(f => f.forEach(q => { zb = s.back > 0 ? Math.max(zb, q[0]) : Math.min(zb, q[0]); }));
+          zb += s.back * (s.part === 'M1' ? sys.D * 0.1 : Math.max(s.sd * 0.3, sys.D * 0.02));
+          faces.forEach(f => shapes.push({ kind: 'mirror', poly: f.concat([[zb, f[f.length - 1][1]], [zb, f[0][1]]]), face: f }));
+        } else faces.forEach(f => shapes.push({ kind: 'spot', face: f }));
+        labels.push({ text: s.label, z: s.z, top: s.sd, bot: -s.sd });
+      }
+    }
+    return { shapes, labels };
+  }
+  function imageLine(sys, half) {
+    const I = sys.image, W = I.W || 0, c = I.cI || 0, pts = [];
+    for (let i = -8; i <= 8; i++) {
+      const s = half * i / 8, q = 1 - c * c * s * s, w = W + (c && q > 0 ? c * s * s / (1 + Math.sqrt(q)) : 0);
+      pts.push([I.o[2] + I.v[2] * s + I.w[2] * w, I.o[1] + I.v[1] * s + I.w[1] * w]);
+    }
+    return pts;
+  }
+  function drawLayout(cv, sys, res, o) {
+    const { ctx, W, H } = fit(cv), thumb = !!o.thumb;
+    const fans = [];
+    fans.push({ col: C.rayA, rays: LAB.layoutRays(sys, 0, LAM.d, thumb ? 3 : 9) });
+    if (!thumb && o.field > 0.01) fans.push({ col: C.rayB, rays: LAB.layoutRays(sys, o.field, LAM.d, 7) });
+    const geo = geometry(sys);
+    const hEdge = res && res.ok ? res.spots[2].h : 0;
+    const img = imageLine(sys, Math.max(hEdge * 1.25, sys.D * 0.035));
+    let z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    const ext = q => { if (q[0] < z0) z0 = q[0]; if (q[0] > z1) z1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; };
+    fans.forEach(f => f.rays.forEach(r => r.pts.forEach(ext)));
+    geo.shapes.forEach(s => (s.poly || s.face).forEach(ext));
+    img.forEach(ext);
+    const ym = Math.max(Math.abs(y0), Math.abs(y1));
+    if (!thumb && Math.abs(sys.image.w[1]) < 0.5) { y0 = -ym; y1 = ym; }
+    const mL = thumb ? 2 : 18, mR = thumb ? 2 : 22, mT = thumb ? 3 : 30, mB = thumb ? 3 : 40;
+    const s = Math.min((W - mL - mR) / (z1 - z0), (H - mT - mB) / (y1 - y0));
+    let sx = s, sy = s;
+    if (o.stretch) sy = Math.min((H - mT - mB) / (y1 - y0), s * (thumb ? 6 : 3));
+    if (thumb) sx = (W - mL - mR) / (z1 - z0);
+    const ox = mL + ((W - mL - mR) - (z1 - z0) * sx) / 2, oy = mT + ((H - mT - mB) - (y1 - y0) * sy) / 2;
+    const X = z => ox + (z - z0) * sx, Y = y => oy + (y1 - y) * sy;
+    const path = pts => { ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(X(q[0]), Y(q[1])) : ctx.moveTo(X(q[0]), Y(q[1]))); };
+
+    if (!thumb) {
+      // breadboard dots
+      ctx.fillStyle = C.line;
+      for (let gx = 12; gx < W; gx += 24) for (let gy = 12; gy < H; gy += 24) ctx.fillRect(gx - 0.75, gy - 0.75, 1.5, 1.5);
+      // optical axis
+      ctx.strokeStyle = C.line2; ctx.lineWidth = 1; ctx.setLineDash([10, 4, 2, 4]);
+      ctx.beginPath(); ctx.moveTo(X(z0), Y(0)); ctx.lineTo(X(z1), Y(0)); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.lineJoin = 'round';
+    fans.forEach(f => {
+      ctx.strokeStyle = f.col; ctx.lineWidth = thumb ? 0.8 : 1;
+      f.rays.forEach(r => { ctx.globalAlpha = r.ok ? (thumb ? 0.9 : 0.78) : 0.22; path(r.pts); ctx.stroke(); });
+    });
+    ctx.globalAlpha = 1;
+    geo.shapes.forEach(sh => {
+      if (sh.kind === 'lens') {
+        path(sh.poly); ctx.closePath(); ctx.fillStyle = C.glass; ctx.fill();
+        ctx.strokeStyle = C.glassEdge; ctx.lineWidth = thumb ? 0.8 : 1.2; ctx.stroke();
+      } else if (sh.kind === 'mirror') {
+        path(sh.poly); ctx.closePath(); ctx.fillStyle = C.mirror; ctx.fill();
+        path(sh.face); ctx.strokeStyle = C.mirrorEdge; ctx.lineWidth = thumb ? 1.2 : 2; ctx.stroke();
+      } else {
+        path(sh.face); ctx.strokeStyle = C.mirrorEdge; ctx.lineWidth = thumb ? 1.6 : 3; ctx.stroke();
+      }
+    });
+    path(img); ctx.strokeStyle = C.sensor; ctx.lineWidth = thumb ? 1.4 : 2.5; ctx.stroke();
+    if (thumb) return;
+
+    // labels
+    ctx.font = '500 11px ' + MONO; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    const placed = [];
+    const tryPlace = (text, cx, cy) => {
+      const w = ctx.measureText(text).width + 8, x = Math.min(Math.max(cx, w / 2 + 4), W - w / 2 - 4);
+      const r = [x - w / 2, cy - 8, x + w / 2, cy + 8];
+      if (r[1] < 2 || r[3] > H - 22) return false;
+      for (const q of placed) if (r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]) return false;
+      placed.push(r);
+      ctx.fillStyle = C.panel; ctx.globalAlpha = 0.82; ctx.fillRect(r[0], r[1], w, 16); ctx.globalAlpha = 1;
+      ctx.fillStyle = C.ink2; ctx.fillText(text, x, cy + 0.5);
+      return true;
+    };
+    let it = 0, ib = 0;
+    img.forEach(q => { if (q[1] > img[it][1]) it = img.indexOf(q); if (q[1] < img[ib][1]) ib = img.indexOf(q); });
+    const all = geo.labels.filter(l => l.text).map(l => ({ text: l.text, x: X(l.z), yt: Y(l.top) - 13, yb: Y(l.bot) + 13 }));
+    all.push({ text: 'Focus', x: X((img[0][0] + img[16][0]) / 2), yt: Y(img[it][1]) - 13, yb: Y(img[ib][1]) + 13 });
+    all.forEach(l => { if (!tryPlace(l.text, l.x, l.yt)) tryPlace(l.text, l.x, l.yb); });
+
+    // scale bar
+    const mm = niceDown(110 / sx), bx = 18, by = H - 16;
+    ctx.strokeStyle = C.ink2; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(bx, by - 4); ctx.lineTo(bx, by + 4); ctx.moveTo(bx, by); ctx.lineTo(bx + mm * sx, by); ctx.moveTo(bx + mm * sx, by - 4); ctx.lineTo(bx + mm * sx, by + 4); ctx.stroke();
+    ctx.fillStyle = C.ink2; ctx.textAlign = 'left';
+    ctx.fillText(mm + ' mm' + (sy / sx > 1.04 ? '   height drawn ×' + (sy / sx).toFixed(1) : ''), bx + mm * sx + 8, by + 0.5);
+  }
+
+  // ---------- spot diagrams ----------
+  function drawSpot(cv, spot, S, airy, lams) {
+    const { ctx, W, H } = fit(cv), cx = W / 2, cy = H / 2, half = Math.min(W, H) / 2 - 1, sc = half / S;
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy - half); ctx.lineTo(cx, cy + half); ctx.moveTo(cx - half, cy); ctx.lineTo(cx + half, cy); ctx.stroke();
+    if (!spot.stats.n) {
+      ctx.fillStyle = C.ink3; ctx.font = '500 11px ' + MONO; ctx.textAlign = 'center'; ctx.fillText('no light', cx, cy - 8);
+      return;
+    }
+    ctx.globalAlpha = 0.85;
+    spot.sets.forEach((pts, k) => {
+      ctx.fillStyle = C[lams[k].key];
+      for (let i = 0; i < pts.length; i++) {
+        const x = cx + (pts[i][0] - spot.stats.cu) * sc, y = cy - (pts[i][1] - spot.stats.cv) * sc;
+        if (x > 1 && x < W - 1 && y > 1 && y < H - 1) ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8);
+      }
+    });
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(cx, cy, Math.max(airy * sc, 0.5), 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // ---------- plots ----------
+  function frame(ctx, W, H, a) {
+    const L = 48, R = 30, T = 12, B = 32, pw = W - L - R, ph = H - T - B;
+    const X = x => L + (x - a.x0) / (a.x1 - a.x0) * pw, Y = y => T + ph - (y - a.y0) / (a.y1 - a.y0) * ph;
+    ctx.font = '11px ' + MONO; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+    ctx.beginPath();
+    a.xt.forEach(t => { ctx.moveTo(X(t), T); ctx.lineTo(X(t), T + ph); });
+    a.yt.forEach(t => { ctx.moveTo(L, Y(t)); ctx.lineTo(L + pw, Y(t)); });
+    ctx.stroke();
+    ctx.fillStyle = C.ink2;
+    ctx.textAlign = 'center'; a.xt.forEach(t => ctx.fillText(a.xf(t), X(t), T + ph + 10));
+    ctx.textAlign = 'right'; a.yt.forEach(t => ctx.fillText(a.yf(t), L - 6, Y(t)));
+    ctx.textAlign = 'right'; ctx.fillStyle = C.ink3; ctx.fillText(a.xl, L + pw, T + ph + 23);
+    return { X, Y, L, T, pw, ph };
+  }
+  function tickFmt(X) { const dec = X >= 10 ? 0 : X >= 1 ? 1 : X >= 0.1 ? 2 : 3; return t => (t === 0 ? '0' : (t > 0 ? '+' : '−') + Math.abs(t).toFixed(dec)); }
+  function drawLSA(cv, res, lams) {
+    const { ctx, W, H } = fit(cv), dof = 2 * LAM.d * res.fno * res.fno / 1000;
+    let m = dof * 1.4;
+    res.lsa.forEach(c => c.forEach(q => { if (q && Math.abs(q[0]) > m) m = Math.abs(q[0]); }));
+    const Xm = nice(m * 1.05), f = frame(ctx, W, H, { x0: -Xm, x1: Xm, y0: 0, y1: 1, xt: [-Xm, -Xm / 2, 0, Xm / 2, Xm], yt: [0, 0.5, 1], xf: tickFmt(Xm), yf: t => t === 0 ? 'axis' : t === 1 ? 'rim' : '½', xl: 'focus position, mm' });
+    ctx.fillStyle = C.band; ctx.fillRect(f.X(-dof), f.T, f.X(dof) - f.X(-dof), f.ph);
+    ctx.strokeStyle = C.sensor; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(f.X(0), f.T); ctx.lineTo(f.X(0), f.T + f.ph); ctx.stroke();
+    ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
+    res.lsa.forEach((c, k) => {
+      ctx.strokeStyle = C[lams[k].key]; ctx.beginPath();
+      let pen = false;
+      c.forEach(q => { if (!q) { pen = false; return; } const x = f.X(Math.max(-Xm, Math.min(Xm, q[0]))), y = f.Y(q[1]); if (pen) ctx.lineTo(x, y); else ctx.moveTo(x, y); pen = true; });
+      ctx.stroke();
+    });
+  }
+  function drawField(cv, res) {
+    const { ctx, W, H } = fit(cv), dof = 2 * LAM.d * res.fno * res.fno / 1000, det0 = res.W - res.Wparax, c = res.cImg;
+    const det = res.astig.map(r => { const q = 1 - c * c * r[3] * r[3]; return c && q > 0 ? c * r[3] * r[3] / (1 + Math.sqrt(q)) : 0; });
+    let m = dof * 1.4;
+    res.astig.forEach((r, i) => { m = Math.max(m, Math.abs(r[1] - det0), Math.abs(r[2] - det0), Math.abs(det[i])); });
+    const Xm = nice(m * 1.05), fm = res.fieldMax;
+    const f = frame(ctx, W, H, { x0: -Xm, x1: Xm, y0: 0, y1: fm, xt: [-Xm, -Xm / 2, 0, Xm / 2, Xm], yt: [0, fm / 2, fm], xf: tickFmt(Xm), yf: t => t.toFixed(2) + '°', xl: 'focus position, mm' });
+    ctx.fillStyle = C.band; ctx.beginPath();
+    det.forEach((d, i) => { const x = f.X(d - dof), y = f.Y(res.astig[i][0]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    for (let i = det.length - 1; i >= 0; i--) ctx.lineTo(f.X(det[i] + dof), f.Y(res.astig[i][0]));
+    ctx.closePath(); ctx.fill();
+    const curve = (fn, col, dash, lw) => {
+      ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.setLineDash(dash); ctx.beginPath();
+      res.astig.forEach((r, i) => { const x = f.X(Math.max(-Xm, Math.min(Xm, fn(r, i)))), y = f.Y(r[0]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke(); ctx.setLineDash([]);
+    };
+    curve((r, i) => det[i], C.sensor, [], 1.5);
+    curve(r => r[1] - det0, C.rayA, [], 2);
+    curve(r => r[2] - det0, C.rayB, [6, 4], 2);
+  }
+
+  // ---------- page pieces ----------
+  const cur = () => BY_ID[state.id];
+  function buildCatalog() {
+    const nav = $('#catalog');
+    let group = null, list = null;
+    DESIGNS.forEach(d => {
+      if (d.group !== group) {
+        group = d.group;
+        list = h('div', { class: 'cat-list' });
+        nav.appendChild(h('div', { class: 'cat-g' }, [h('h2', { class: 'cat-h', text: group }), list]));
+      }
+      const cvs = h('canvas', { class: 'thumb', 'aria-hidden': 'true' });
+      const b = h('button', { type: 'button', class: 'cat-b', id: 'pick-' + d.id, 'aria-pressed': 'false' }, [cvs, h('span', { class: 'cat-t' }, [h('span', { class: 'cat-n', text: d.name }), h('span', { class: 'cat-r', text: d.recipe })])]);
+      b.addEventListener('click', () => select(d.id));
+      list.appendChild(b);
+      d.thumb = cvs;
+    });
+  }
+  function drawThumbs() {
+    DESIGNS.forEach(d => {
+      try { const sys = LAB.B[d.id](Object.assign({}, d.def, { field: 0 })); drawLayout(d.thumb, sys, null, { thumb: true, stretch: true, field: 0 }); } catch (e) { /* thumbnail is decorative */ }
+    });
+  }
+  const outs = {};
+  function buildControls() {
+    const d = cur(), p = state.p[d.id], box = $('#controls-body');
+    box.textContent = '';
+    for (const k in outs) delete outs[k];
+    const groups = {};
+    const groupEl = name => {
+      if (!groups[name]) { groups[name] = h('fieldset', { class: 'grp' }, [h('legend', { text: name })]); box.appendChild(groups[name]); }
+      return groups[name];
+    };
+    const order = ['Telescope', 'Star and detector', 'Experiment'];
+    const items = [];
+    d.ctl.forEach(c => items.push({ kind: 'range', c, group: CTL[c[0]].group }));
+    if (d.glass) items.push({ kind: 'spec', group: 'Star and detector' });
+    d.chk.forEach(k => items.push({ kind: 'chk', k, group: CHK[k].group }));
+    if (d.fixed) groupEl('Telescope').appendChild(h('p', { class: 'fixed', text: 'Fixed prescription at ' + d.fixed + '. It scales with the aperture.' }));
+    order.forEach(g => items.filter(i => i.group === g).forEach(i => {
+      const G = groupEl(g);
+      if (i.kind === 'range') {
+        const [k, min, max, step] = i.c, id = 'c-' + k;
+        const out = h('output', { for: id, class: 'val' }), sub = CTL[k].sub ? h('span', { class: 'sub' }) : null;
+        const inp = h('input', { type: 'range', id, min, max, step, value: p[k] });
+        inp.addEventListener('input', () => { p[k] = parseFloat(inp.value); schedule(); });
+        outs[k] = { out, sub };
+        G.appendChild(h('div', { class: 'row' }, [h('div', { class: 'row-h' }, [h('label', { for: id, text: CTL[k].label }), out]), inp, sub]));
+      } else if (i.kind === 'spec') {
+        const sel = h('select', { id: 'c-spec' }, [['d', 'One colour (588 nm)'], ['FdC', 'Three colours (F, d, C)'], ['gFdC', 'Four colours (adds violet g)']].map(o => h('option', { value: o[0], text: o[1] })));
+        sel.value = p.spec;
+        sel.addEventListener('change', () => { p.spec = sel.value; schedule(); });
+        G.appendChild(h('div', { class: 'row' }, [h('div', { class: 'row-h' }, [h('label', { for: 'c-spec', text: 'Starlight' })]), sel]));
+      } else {
+        const id = 'c-' + i.k, inp = h('input', { type: 'checkbox', id });
+        inp.checked = !!p[i.k];
+        inp.addEventListener('change', () => { p[i.k] = inp.checked; schedule(); });
+        G.appendChild(h('div', { class: 'chk' }, [inp, h('label', { for: id, text: CHK[i.k].label })]));
+      }
+    }));
+  }
+  function select(id) {
+    state.id = id;
+    try { localStorage.setItem('tol-design', id); } catch (e) { /* ignore */ }
+    DESIGNS.forEach(d => { const b = $('#pick-' + d.id); b.setAttribute('aria-pressed', d.id === id ? 'true' : 'false'); });
+    const d = cur();
+    $('#d-name').textContent = d.name;
+    $('#d-recipe').textContent = d.recipe;
+    $('#d-about').textContent = d.about;
+    const ul = $('#d-tries'); ul.textContent = '';
+    d.tries.forEach(t => ul.appendChild(h('li', { text: t })));
+    buildControls();
+    update();
+  }
+
+  function readouts(sys, res, p) {
+    const dl = $('#readouts'); dl.textContent = '';
+    const add = (k, v, note) => dl.appendChild(h('div', { class: 'ro' }, [h('dt', { text: k }), h('dd', null, [h('span', { class: 'ro-v', text: v }), note ? h('span', { class: 'ro-n', text: note }) : null])]));
+    const arc = 206265 / res.efl, R = res.cField ? 1 / res.cField : Infinity;
+    let z0 = Infinity, z1 = -Infinity;
+    geometry(sys).shapes.forEach(s => (s.poly || s.face).forEach(q => { z0 = Math.min(z0, q[0]); z1 = Math.max(z1, q[0]); }));
+    imageLine(sys, 1).forEach(q => { z0 = Math.min(z0, q[0]); z1 = Math.max(z1, q[0]); });
+    add('Focal length', res.efl.toFixed(0) + ' mm', 'f/' + res.fno.toFixed(2));
+    add('Image scale', arc.toFixed(arc < 100 ? 1 : 0) + '″ per mm');
+    add('Airy disc', (2 * res.airy).toFixed(1) + ' µm', (2 * res.airy / 1000 * arc).toFixed(2) + '″ across');
+    add('Central obstruction', sys.obstruction > 0 ? (sys.obstruction * 100).toFixed(0) + ' %' : 'none', sys.obstruction > 0 ? 'of the diameter' : '');
+    add('Image circle', (2 * res.spots[2].h).toFixed(1) + ' mm', 'at ±' + p.field.toFixed(2) + '°');
+    add('Light at the edge', (res.vignette * 100).toFixed(0) + ' %', 'of on-axis');
+    add('Field curvature', Math.abs(R) > 40 * res.efl ? 'flat' : 'R ' + Math.abs(R).toFixed(0) + ' mm', Math.abs(R) > 40 * res.efl ? '' : (res.cImg ? 'detector matched' : 'detector flat'));
+    add('Optics length', (z1 - z0).toFixed(0) + ' mm', (((z1 - z0) / res.efl) * 100).toFixed(0) + ' % of focal length');
+  }
+  function prescription(sys) {
+    const tb = $('#rx-body'); tb.textContent = '';
+    const S = sys.surfaces.filter(s => s.mode !== 'pass'), I = sys.image;
+    S.forEach((s, i) => {
+      const nx = S[i + 1];
+      let dist;
+      if (nx) dist = Math.abs(nx.z - s.z);
+      else dist = Math.abs((I.o[0]) * I.w[0] + I.o[1] * I.w[1] + (I.o[2] - s.z) * I.w[2] + (I.W || 0));
+      const rad = s.type === 'fold' ? 'flat' : s.c === 0 ? '∞' : num(1 / s.c, Math.abs(1 / s.c) < 1000 ? 1 : 0);
+      let con = s.type === 'fold' || s.c === 0 ? '–' : num(s.k, 3);
+      if (s.asph) con = 'A₂ ' + s.a2.toExponential(2) + ', A₄ ' + s.a4.toExponential(2) + ', A₆ ' + s.a6.toExponential(2);
+      const med = s.mode === 'mirror' ? 'mirror' : (s.glass || 'air');
+      const dia = (2 * s.sd).toFixed(0) + (s.hole > 0 && s.mode === 'mirror' ? ' (hole ' + (2 * s.hole).toFixed(0) + ')' : '');
+      tb.appendChild(h('tr', null, [h('td', { text: String(i + 1) }), h('th', { scope: 'row', text: s.name || s.label }), h('td', { text: rad }), h('td', { text: con.replace(/e([+-])(\d+)/g, (m, a, b) => '×10' + (a === '-' ? '⁻' : '') + b.replace(/\d/g, x => '⁰¹²³⁴⁵⁶⁷⁸⁹'[x])).replace(/-/g, '−') }), h('td', { text: dist.toFixed(dist < 100 ? 2 : 1) + (nx ? '' : ' to focus') }), h('td', { text: med }), h('td', { text: dia })]));
+    });
+  }
+
+  let raf = 0;
+  function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); }
+  function update() {
+    const d = cur(), p = state.p[d.id];
+    let sys, res;
+    try {
+      sys = LAB.B[d.id](p);
+      const lams = d.glass ? SPEC[p.spec].map(k => WL[k]) : [WL.d];
+      res = LAB.analyze(sys, { field: p.field, focPct: p.foc, lams: lams.map(w => w.lam), curved: p.curved, rings: 10 });
+      res.lams = lams;
+    } catch (e) { res = { ok: false }; }
+    const dead = $('#dead');
+    dead.hidden = !!(res && res.ok);
+    for (const k in outs) {
+      const c = CTL[k];
+      outs[k].out.textContent = sys ? c.fmt(p[k], p, sys, res) : '–';
+      if (outs[k].sub) outs[k].sub.textContent = sys ? c.sub(p[k], p, sys, res) : '';
+    }
+    if (!sys) return;
+    drawLayout($('#bench-cv'), sys, res, { field: p.field, stretch: state.stretch });
+    $('#leg-off').hidden = !(p.field > 0.01);
+    $('#leg-off-t').textContent = 'star ' + p.field.toFixed(2) + '° off axis';
+    if (!res.ok) return;
+    readouts(sys, res, p);
+    // spots
+    let m = res.airy / 1000 * 1.6;
+    res.spots.forEach(s => { if (s.stats.max > m / 1.12) m = s.stats.max * 1.12; });
+    const S = nice(m), arc = 206265 / res.efl;
+    res.spots.forEach((s, i) => {
+      drawSpot($('#spot-' + i), s, S, res.airy / 1000, res.lams);
+      const rms = s.stats.rms * 1000, okk = s.stats.n > 0 && rms <= res.airy;
+      $('#spot-t-' + i).textContent = i === 0 ? 'On axis' : s.angle.toFixed(2) + '° off axis';
+      $('#spot-r-' + i).textContent = s.stats.n ? 'RMS ' + (rms < 10 ? rms.toFixed(2) : rms.toFixed(0)) + ' µm · ' + (s.stats.rms * arc).toFixed(2) + '″' : 'no light';
+      const pill = $('#spot-p-' + i);
+      pill.textContent = okk ? 'Diffraction-limited' : 'Aberration-limited';
+      pill.className = 'pill ' + (okk ? 'ok' : 'no');
+    });
+    $('#spot-scale').textContent = 'Each box is ' + fmtLen(2 * S) + ' across';
+    const leg = $('#wl-legend'); leg.textContent = '';
+    res.lams.forEach(w => leg.appendChild(h('span', { class: 'key' }, [h('i', { class: 'sw', style: 'background:var(--wl-' + w.key + ')' }), h('span', { text: w.name })])));
+    const leg2 = $('#lsa-legend'); leg2.textContent = '';
+    res.lams.forEach(w => leg2.appendChild(h('span', { class: 'key' }, [h('i', { class: 'ln', style: 'background:var(--wl-' + w.key + ')' }), h('span', { text: w.key })])));
+    drawLSA($('#lsa-cv'), res, res.lams);
+    drawField($('#fld-cv'), res);
+    prescription(sys);
+  }
+
+  // ---------- boot ----------
+  function boot() {
+    const PALETTES = ['auto', 'paper', 'observatory', 'blueprint', 'night', 'contrast'], themeSel = $('#theme');
+    const setPalette = v => { if (v === 'auto') document.documentElement.removeAttribute('data-palette'); else document.documentElement.setAttribute('data-palette', v); };
+    let pal = 'auto';
+    try { const sv = localStorage.getItem('tol-theme'); if (PALETTES.indexOf(sv) >= 0) pal = sv; } catch (e) { /* storage unavailable */ }
+    themeSel.value = pal; setPalette(pal);
+    themeSel.addEventListener('change', () => { setPalette(themeSel.value); try { localStorage.setItem('tol-theme', themeSel.value); } catch (e) { /* ignore */ } });
+    readColors();
+    buildCatalog();
+    $('#stretch').checked = state.stretch;
+    $('#stretch').addEventListener('change', e => { state.stretch = e.target.checked; schedule(); });
+    $('#reset').addEventListener('click', () => { const d = cur(); state.p[d.id] = Object.assign({}, d.def); buildControls(); update(); });
+    BOARD.init(schedule);
+    select(state.id);
+    drawThumbs();
+    const redraw = () => { readColors(); drawThumbs(); update(); };
+    if (window.matchMedia) { const mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', redraw); }
+    new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-palette'] });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => update());
+    window.addEventListener('hashchange', () => { const id = location.hash.replace('#', ''); if (BY_ID[id] && id !== state.id) select(id); });
+    const el = $('#pick-' + state.id), sc = $('#catalog');
+    if (el && sc.scrollWidth > sc.clientWidth) sc.scrollLeft = Math.max(0, el.offsetLeft - sc.offsetLeft - 16);
+  }
+  boot();
+})();
+
+</script>
+</body>
+</html>
